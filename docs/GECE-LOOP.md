@@ -357,3 +357,22 @@ Sahada 101 cihaz bağlandıktan sonra aynı durum oluşurdu.
    uğraması gerekir mi, yoksa sahada pfSense DHCP yaptığı için böyle mi kalsın?
 3. **F7 — gerçek TSA kararı** (değişmedi).
 4. Dal `gece-gelistirme`; `main`'e dokunulmadı, push yapılmadı.
+
+### 2026-09-03 — 5. tur (gece-gelistirme dalı)
+
+**Yapılanlar:**
+
+| Görev | Sonuç |
+|---|---|
+| I4 | `docs/PROJE-ANLATIMI.md` koda geri senkronlandı: dosya haritasına `validate.js`, `errors.js`, `scripts/gen-cert.js`, `test/` eklendi; db.js bölümü atomik yazma + biriktirme (120 yazma → 1) + karantina + kira geri alma + oturum ömrü ile güncellendi; kanıt araçlarının başına `npm test` ve kum havuzu güvencesi kondu; simülasyon/saha tablosuna kota-CoA ve TLS satırları eklendi; mülakat kılavuzuna "nasıl test ettin" cevabı girdi |
+| I3 | Kontrol edildi: aynı IP'yi paylaşan 7 oturum I1'den önce açılmış, ~30 dk yaşında, `SESSION_TIMEOUT` 120 dk → temizleyici kendiliğinden kapatacak. Ek iş yok |
+
+**Ek doğrulama:** Günün logu panelden mühürlendi; `verify-chain` artık **2 günü**
+doğruluyor (2026-09-01 → 2026-09-03) ve zincir kopuksuz. Yani imzalama zinciri yalnızca
+testte değil, gerçek günlük akışta da çalışıyor.
+
+**Bu turda ayrıca:** Gecenin tüm arka uç değişiklikleri (37 commit) için bağımsız
+**güvenlik denetimi** ve **kod incelemesi** başlatıldı (CLAUDE.md: auth/kişisel veri
+dokunan işlerden sonra security-auditor, teslim öncesi code-reviewer). Bulgular geldikçe
+bu günlüğe eklenecek.
+
