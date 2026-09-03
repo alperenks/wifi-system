@@ -75,7 +75,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 > En güvenli ve yüksek değerli işler üstte: test eklemek prod'u bozamaz.
 
 ### A. Test altyapısı (en güvenli, önce bunlar)
-- `[ ]` **A1 — Birim testleri: db.js.** `node --test` ile `backend/test/db.test.js`:
+- `[x]` **A1 — Birim testleri: db.js.** `node --test` ile `backend/test/db.test.js`:
   OTP hash+salt doğru, yanlış kod sayacı artıyor, 5'te kilit, `timingSafeEqual` yolu,
   oturum sırrı üretiliyor, `purgeExpired` eski kayıtları siliyor. Kabul: `node --test` yeşil.
 - `[ ]` **A2 — Birim testleri: auth.js.** Token üret→doğrula, süresi geçmiş token reddi,
