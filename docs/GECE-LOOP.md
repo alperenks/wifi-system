@@ -105,7 +105,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 ### D. Kalite / sağlamlık
 - `[x]` **D1 — `/api/health` uç noktası** (kimlik doğrulamasız, {status, uptime, mode}).
   Kabul: 200 döner, simulate'i bozmaz.
-- `[ ]` **D2 — Dashboard: kalan OTP deneme + kilit durumu göster.** verify-otp yanıtındaki
+- `[x]` **D2 — Dashboard: kalan OTP deneme + kilit durumu göster.** verify-otp yanıtındaki
   `remaining` bilgisini captive.html'de göster. Kabul: 3 yanlış girince "2 hak kaldı" görünür.
 - `[ ]` **D3 — Girdi doğrulama sertleştirme.** Tüm uçlarda gövde şeması kontrolü (mac formatı,
   beklenm//eyen alanlar). Kabul: bozuk gövde 400 döner, sunucu çökmez; attack/simulate yeşil.

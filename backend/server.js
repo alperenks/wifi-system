@@ -278,7 +278,8 @@ app.post('/api/verify-otp', verifyLimiter, async (req, res) => {
   if (!result.ok) {
     if (result.reason === 'locked') {
       console.warn(`[AUTH-FLOW] MAC ${mac} akisi kilitlendi (cok fazla yanlis deneme).`);
-      return res.status(429).json({ message: 'Çok fazla hatalı deneme. Lütfen yeni bir kod isteyin.' });
+      // D2: arayüz kilit durumunu durum kodundan bağımsız da anlayabilsin.
+      return res.status(429).json({ message: 'Çok fazla hatalı deneme. Lütfen yeni bir kod isteyin.', locked: true, remaining: 0 });
     }
     if (result.reason === 'bad_code') {
       console.warn(`[AUTH-FLOW] MAC ${mac} hatali OTP. Kalan deneme: ${result.remaining}`);

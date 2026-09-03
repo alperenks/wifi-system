@@ -269,6 +269,19 @@
       color: #8ce99a;
     }
 
+    /* D2: kalan OTP deneme hakkı / kilit durumu */
+    .attempts-text {
+      font-size: 0.8rem;
+      text-align: center;
+      margin: -8px 0 16px;
+      color: #ffc078;
+    }
+
+    .attempts-text.locked {
+      color: #ff8787;
+      font-weight: 600;
+    }
+
     .hidden {
       display: none;
     }
@@ -367,6 +380,8 @@
           <input type="text" id="otp" class="otp-input" placeholder="000000" required minlength="6" maxlength="6" pattern="[0-9]{6}">
         </div>
 
+        <div id="attempts-info" class="attempts-text hidden"></div>
+
         <button type="submit" class="btn" id="btn-otp">
           <div class="spinner" id="spinner-otp"></div>
           <span>Giriş Yap ve İnternete Bağlan</span>
@@ -427,6 +442,37 @@
       document.getElementById('alert-box').style.display = 'none';
     }
 
+    // D2: Kalan deneme hakkını göster. remaining=0 veya locked ise kod alanını kilitle.
+    function showAttempts(remaining, locked) {
+      const info = document.getElementById('attempts-info');
+      const otpInput = document.getElementById('otp');
+      const btn = document.getElementById('btn-otp');
+
+      if (locked) {
+        info.textContent = '🔒 Bu kod kilitlendi. Lütfen yeni bir doğrulama kodu isteyin.';
+        info.className = 'attempts-text locked';
+        otpInput.disabled = true;
+        btn.disabled = true;
+        // Kilitlendiğinde "tekrar gönder" bağlantısı hemen görünsün — misafir beklemesin.
+        clearInterval(countdownTimer);
+        document.getElementById('resend-container').classList.add('hidden');
+        document.getElementById('resend-action').classList.remove('hidden');
+        return;
+      }
+
+      info.textContent = '⚠ ' + remaining + ' deneme hakkınız kaldı.';
+      info.className = 'attempts-text';
+    }
+
+    // Yeni kod istendiğinde kilit ve uyarı sıfırlanır.
+    function resetAttempts() {
+      const info = document.getElementById('attempts-info');
+      info.textContent = '';
+      info.className = 'attempts-text hidden';
+      document.getElementById('otp').disabled = false;
+      document.getElementById('btn-otp').disabled = false;
+    }
+
     function toggleLoading(btnId, spinnerId, isLoading) {
       const btn = document.getElementById(btnId);
       const spinner = document.getElementById(spinnerId);
@@ -457,6 +503,7 @@
           showAlert('Doğrulama kodu başarıyla gönderildi! (Mock API: ' + result.otpCode + ')', true);
           
           // Switch to OTP step
+          resetAttempts();
           document.getElementById('step-phone').classList.add('hidden');
           document.getElementById('step-otp').classList.remove('hidden');
           document.getElementById('dot1').classList.remove('active');
@@ -524,6 +571,14 @@
         } else {
           showAlert(result.message || 'Hatalı veya süresi geçmiş kod girdiniz.');
           toggleLoading('btn-otp', 'spinner-otp', false);
+
+          // D2: sunucunun bildirdiği kalan hak / kilit durumunu ekranda göster.
+          if (result.locked || response.status === 429) {
+            showAttempts(0, true);
+          } else if (typeof result.remaining === 'number') {
+            showAttempts(result.remaining, false);
+          }
+          document.getElementById('otp').value = '';
         }
       } catch (err) {
         console.error(err);
@@ -562,6 +617,7 @@
       document.getElementById('step-otp').classList.add('hidden');
       document.getElementById('dot1').classList.add('active');
       document.getElementById('dot2').classList.remove('active');
+      resetAttempts();
       hideAlert();
     }
   </script>
