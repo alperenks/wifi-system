@@ -10,7 +10,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { checkBody, validateBody } = require('../validate');
+const { checkBody, validateBody, normalizePhone } = require('../validate');
 
 // --- MAC ---------------------------------------------------------------------
 
@@ -142,4 +142,40 @@ test('validateBody hatali govdede 400 + alan adi doner', () => {
   assert.strictEqual(res.statusCode, 400);
   assert.strictEqual(res.body.field, 'mac');
   assert.match(res.body.message, /mac/);
+});
+
+// --- Telefon alanı üzerinden enjeksiyon (güvenlik denetimi bulgusu) ----------
+
+test('telefon alanina gomulen 5651 log satiri REDDEDILIR', () => {
+  const sema = { phone: { type: 'phone', required: true } };
+
+  // Rakamsiz kuyruk: eski "rakam disi her seyi sil" mantiginda dogrulamadan geciyordu.
+  const enjeksiyon = '5551112233\nSAHTE | NAT | aa | bb | cc | dd | ee | ff | Proto: TCP';
+  assert.ok(checkBody({ phone: enjeksiyon }, sema), 'satir sonu iceren deger reddedilmeli');
+
+  const xss = '5551112233<img src=x onerror=alert(1)>';
+  assert.ok(checkBody({ phone: xss }, sema), 'HTML iceren deger reddedilmeli');
+
+  const ayrac = '5551112233 | sahte';
+  assert.ok(checkBody({ phone: ayrac }, sema), 'ayrac iceren deger reddedilmeli');
+});
+
+test('normalizePhone yalnizca ayraclari temizler, kanonik 10 hane doner', () => {
+  assert.strictEqual(normalizePhone('5551112233'), '5551112233');
+  assert.strictEqual(normalizePhone('555 111 22 33'), '5551112233');
+  assert.strictEqual(normalizePhone('(555) 111-22.33'), '5551112233');
+  assert.strictEqual(normalizePhone('  5551112233\n'), '5551112233',
+    'bastaki/sondaki bosluk kirpilir — icerideki metin degil');
+
+  for (const kotu of ['05551112233', '5551112233x', '5551112233|x', '5551112233<b>', '', null, undefined, {}]) {
+    assert.strictEqual(normalizePhone(kotu), null, `reddedilmeliydi: ${String(kotu)}`);
+  }
+});
+
+test('int alani boolean kabul etmez', () => {
+  const sema = { count: { type: 'int', min: 1, max: 25 } };
+  assert.ok(checkBody({ count: true }, sema), 'true tam sayi degildir');
+  assert.ok(checkBody({ count: false }, sema));
+  assert.ok(checkBody({ count: [] }, sema));
+  assert.strictEqual(checkBody({ count: 5 }, sema), null);
 });

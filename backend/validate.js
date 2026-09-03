@@ -18,6 +18,18 @@
       handler);
 */
 
+/**
+ * Telefonu kanonik biçime getirir: başında 0 olmadan 10 hane (5XXXXXXXXX).
+ * Geçersizse null döner. Ayraç olarak yalnızca boşluk, tire, nokta ve parantez
+ * kabul edilir — başka hiçbir karakter numaranın içinde olamaz.
+ */
+function normalizePhone(v) {
+  // Baştaki 0 BİLEREK kabul edilmiyor: portal "başında 0 olmadan" diyor ve
+  // güvenlik düzeltmesi kabul edilen girdi yüzeyini genişletmemeli.
+  const haneler = String(v == null ? '' : v).trim().replace(/[\s().-]/g, '');
+  return /^5[0-9]{9}$/.test(haneler) ? haneler : null;
+}
+
 // --- Tip doğrulayıcıları -----------------------------------------------------
 
 const TYPES = {
@@ -28,10 +40,14 @@ const TYPES = {
     return /^[0-9a-f]{12}$/.test(clean) ? null : 'geçerli bir MAC adresi olmalı';
   },
 
-  // Başında 0 olmadan 5XXXXXXXXX
+  // Başında 0 olmadan 5XXXXXXXXX.
+  // DİKKAT: yalnızca yaygın AYRAÇLAR (boşluk, tire, parantez, nokta) temizlenir;
+  // eskiden "rakam olmayan her şey" silinip test ediliyordu, bu yüzden
+  // "5551112233<img ...>" veya satır sonu içeren bir değer doğrulamadan geçip
+  // ham hâliyle saklanıyordu (5651 log satırına enjeksiyon + panelde XSS).
   phone(v) {
     if (typeof v !== 'string' && typeof v !== 'number') return 'metin olmalı';
-    return /^5[0-9]{9}$/.test(String(v).replace(/\D/g, '')) ? null : '5XXXXXXXXX biçiminde olmalı';
+    return normalizePhone(v) ? null : '5XXXXXXXXX biçiminde olmalı';
   },
 
   // 6 haneli sayısal doğrulama kodu
@@ -50,6 +66,9 @@ const TYPES = {
   },
 
   int(v, rule) {
+    // true/false Number() ile 1/0'a dönüşüyordu; sonra handler'daki parseInt(true)
+    // NaN veriyor ve uç nokta "başarılı" ama hiçbir iş yapmamış oluyordu.
+    if (typeof v !== 'number' && typeof v !== 'string') return 'tam sayı olmalı';
     const n = typeof v === 'number' ? v : Number(v);
     if (!Number.isInteger(n)) return 'tam sayı olmalı';
     if (rule.min !== undefined && n < rule.min) return `en az ${rule.min} olmalı`;
@@ -120,4 +139,4 @@ function validateBody(schema) {
   };
 }
 
-module.exports = { validateBody, checkBody, TYPES };
+module.exports = { validateBody, checkBody, TYPES, normalizePhone };

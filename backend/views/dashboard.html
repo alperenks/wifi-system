@@ -496,6 +496,15 @@
       }, 3000);
     }
 
+    // Sunucudan gelen hiçbir metin doğrudan innerHTML'e girmemeli: telefon/MAC/IP
+    // alanları misafirin gönderdiği veriden türüyor. (Doğrulama katmanı zaten
+    // temizliyor; bu ikinci kapı — panel yönetici oturumunda çalışıyor.)
+    function esc(deger) {
+      return String(deger == null ? '' : deger)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     // F4: /api/config'ten gelen oturum başına veri kotası (MB). 0 = kapalı.
     let quotaMb = 0;
 
@@ -542,8 +551,8 @@
           const sureDoldu = sess.terminateCause === 'timeout';
           const controls = sess.active
             ? `<div style="display:flex; gap:6px;">
-                 <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem;" onclick="browseFor('${sess.ip}')">Gezin</button>
-                 <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem; border-color:var(--danger); color:var(--danger);" onclick="disconnect('${sess.ip}')">Kes</button>
+                 <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem;" onclick="browseFor('${esc(sess.ip)}')">Gezin</button>
+                 <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem; border-color:var(--danger); color:var(--danger);" onclick="disconnect('${esc(sess.ip)}')">Kes</button>
                </div>`
             : (kotaDoldu
               ? `<span class="session-status quota" title="Veri kotası aşıldı, RFC 5176 Disconnect ile düşürüldü">Kota doldu</span>`
@@ -552,8 +561,8 @@
                 : `<span class="session-status inactive">Koptu</span>`);
           item.innerHTML = `
             <div class="session-info">
-              <span class="ip-mac">${sess.ip} / <span style="color: var(--primary);">${sess.username.toUpperCase()}</span></span>
-              <span class="phone">Tel: +90 ${sess.phone} | ${mb} MB | ${new Date(sess.startTime).toLocaleTimeString()}</span>
+              <span class="ip-mac">${esc(sess.ip)} / <span style="color: var(--primary);">${esc(String(sess.username).toUpperCase())}</span></span>
+              <span class="phone">Tel: +90 ${esc(sess.phone)} | ${mb} MB | ${new Date(sess.startTime).toLocaleTimeString()}</span>
               ${quotaHtml}
             </div>
             ${controls}
@@ -564,7 +573,7 @@
           if (sess.active) {
             const opt = document.createElement('option');
             opt.value = sess.ip;
-            opt.textContent = `${sess.ip} (${sess.phone})`;
+            opt.textContent = `${sess.ip} (${sess.phone})`;   // textContent — kaçış gerekmez
             ipSelect.appendChild(opt);
           }
         });
