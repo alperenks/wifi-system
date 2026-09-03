@@ -7,6 +7,94 @@ const SHARED_SECRET = config.radius.secret;
 const AUTH_PORT = config.radius.authPort;
 const ACCT_PORT = config.radius.acctPort;
 
+// F-10: Veri kotası. 0 = kapalı.
+const QUOTA_BYTES = Math.max(0, config.quota.megabytes) * 1024 * 1024;
+
+/**
+ * F-10: NAS'a RFC 5176 Disconnect-Request (CoA/DM) gönderir.
+ *
+ * Gerçek sahada bunu FreeRADIUS yapar: kotayı aşan kullanıcının oturumunu
+ * NAS'ın (pfSense/MikroTik/ESP32 köprüsü) 3799 numaralı CoA portuna paket
+ * göndererek düşürür. Burada aynı paketi gerçekten üretiyoruz — Wireshark'ta
+ * görülebilir. NAS ACK dönerse kullanıcı düşürülmüştür.
+ *
+ * @returns {Promise<{acked:boolean, code?:string, error?:string}>}
+ */
+function sendDisconnect(username, sessionId, nasAddress) {
+  const host = config.quota.coaHost || nasAddress;
+  const port = config.quota.coaPort;
+
+  return new Promise((resolve) => {
+    let packet;
+    try {
+      packet = radius.encode({
+        code: 'Disconnect-Request',
+        secret: SHARED_SECRET,
+        identifier: Math.floor(Math.random() * 256),
+        attributes: {
+          'User-Name': username,
+          'Acct-Session-Id': sessionId,
+          'Acct-Terminate-Cause': 'Session-Timeout',   // kota bitti -> oturum sonlandırıldı
+        },
+      });
+    } catch (err) {
+      return resolve({ acked: false, error: err.message });
+    }
+
+    const socket = dgram.createSocket('udp4');
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { socket.close(); } catch (_) {}
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => finish({ acked: false, error: 'CoA yanıt zaman aşımı' }), 2000);
+
+    socket.on('message', (msg) => {
+      try {
+        const response = radius.decode({ packet: msg, secret: SHARED_SECRET });
+        finish({ acked: response.code === 'Disconnect-ACK', code: response.code });
+      } catch (err) {
+        finish({ acked: false, error: err.message });
+      }
+    });
+    socket.on('error', (err) => finish({ acked: false, error: err.message }));
+
+    socket.send(packet, 0, packet.length, port, host, (err) => {
+      if (err) finish({ acked: false, error: err.message });
+    });
+  });
+}
+
+/**
+ * F-10: Interim-Update sonrası kota kontrolü. Eşik aşıldıysa oturumu kapatır
+ * ve NAS'a Disconnect-Request gönderir.
+ */
+async function enforceQuota(username, sessionId, inputOctets, outputOctets, nasAddress) {
+  if (QUOTA_BYTES <= 0) return false;                       // kota kapalı
+  const total = inputOctets + outputOctets;
+  if (total < QUOTA_BYTES) return false;
+
+  const session = db.data.radacct.find(s => s.sessionId === sessionId && s.active);
+  if (!session) return false;                               // zaten kapanmış
+
+  const mb = (total / 1024 / 1024).toFixed(1);
+  console.warn(`[QUOTA] ${username} kotayi asti (${mb} MB / ${config.quota.megabytes} MB). Oturum kapatiliyor: ${sessionId}`);
+
+  db.stopSession(sessionId, inputOctets, outputOctets);
+
+  const result = await sendDisconnect(username, sessionId, nasAddress);
+  if (result.acked) {
+    console.log(`[QUOTA] NAS Disconnect-ACK dondu — ${username} agdan dusuruldu.`);
+  } else {
+    console.warn(`[QUOTA] NAS Disconnect onaylamadi (${result.error || result.code}). Oturum yine de kapatildi (muhasebe kaydi kesin).`);
+  }
+  return true;
+}
+
 function startRadiusServer() {
   const authSocket = dgram.createSocket('udp4');
   const acctSocket = dgram.createSocket('udp4');
@@ -89,6 +177,9 @@ function startRadiusServer() {
         } else if (statusType === 'Alive' || statusType === 'Interim-Update' || statusType === 3) {
           db.updateSession(sessionId, inputOctets, outputOctets);
           console.log(`[RADIUS-ACCT] Session update for ${username}. In/Out: ${inputOctets}/${outputOctets} bytes`);
+          // F-10: kota kontrolü Accounting-Response'u geciktirmesin — arka planda.
+          enforceQuota(username, sessionId, inputOctets, outputOctets, rinfo.address)
+            .catch(err => console.error('[QUOTA] Kota uygulanamadi:', err.message));
         }
 
         const responseMsg = radius.encode_response({
@@ -112,6 +203,9 @@ function startRadiusServer() {
   // Bind to wildcard address
   authSocket.bind(AUTH_PORT);
   acctSocket.bind(ACCT_PORT);
+
+  // Soketleri döndürüyoruz ki testler sunucuyu kapatabilsin (üretimde kullanılmaz).
+  return { authSocket, acctSocket };
 }
 
-module.exports = { startRadiusServer };
+module.exports = { startRadiusServer, sendDisconnect, enforceQuota, QUOTA_BYTES };

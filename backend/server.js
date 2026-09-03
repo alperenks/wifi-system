@@ -531,6 +531,13 @@ function onListening(scheme) {
   startSyslogServer();
   startCronSigner();
 
+  // F-10: Veri kotası açıksa, yazılım NAS'ın CoA/DM dinleyicisini de kaldır —
+  // kotayı aşan oturum için RADIUS sunucusu buraya Disconnect-Request gönderir.
+  if (config.quota.megabytes > 0) {
+    console.log(`[QUOTA] Veri kotasi AKTIF: oturum basina ${config.quota.megabytes} MB (asilinca RFC 5176 Disconnect).`);
+    radiusClient.startCoaListener();
+  }
+
   // F-07: başlangıçta bir kez saklama temizliği (süresi geçmiş kayıt/loglar)
   try { db.purgeExpired(); purgeOldLogs(); } catch (e) { console.warn('[RETENTION] baslangic temizligi hata:', e.message); }
 }

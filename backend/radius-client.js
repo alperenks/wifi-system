@@ -23,6 +23,10 @@ const AUTH_PORT = config.radius.authPort;
 const ACCT_PORT = config.radius.acctPort;
 const SECRET = config.radius.secret;
 
+// F-10: NAS'ın kendi oturum tablosu. Gerçek bir NAS da bunu tutar; CoA/DM
+// (Disconnect-Request) geldiğinde hangi oturumu düşüreceğini buradan bilir.
+const activeSessions = new Map();   // sessionId -> { mac, ip }
+
 /**
  * Bir RADIUS paketi gönderir ve yanıtı bekler (timeout'lu).
  */
@@ -114,6 +118,7 @@ async function accountingStart(mac, ip, sessionId) {
     },
   });
   await sendPacket(ACCT_PORT, packet);
+  activeSessions.set(sessionId, { mac: cleanMac, ip });
   return { sessionId, ip };
 }
 
@@ -155,6 +160,61 @@ async function accountingStop(mac, sessionId, inputOctets, outputOctets) {
     },
   });
   await sendPacket(ACCT_PORT, packet);
+  activeSessions.delete(sessionId);
+}
+
+/**
+ * F-10: NAS tarafının CoA/DM dinleyicisi (RFC 5176).
+ *
+ * Gerçek sahada bu, pfSense/MikroTik'in 3799 portudur: RADIUS sunucusu kotayı
+ * aşan kullanıcı için Disconnect-Request gönderir, NAS kullanıcıyı ağdan atıp
+ * Disconnect-ACK döner. Simülasyonda NAS'ı biz taklit ettiğimiz için dinleyici
+ * burada. Bilinmeyen oturum için RFC gereği Disconnect-NAK döneriz.
+ *
+ * @param {(info:{sessionId:string, mac:string, ip:string}) => void} [onDisconnect]
+ * @returns {import('dgram').Socket}
+ */
+function startCoaListener(onDisconnect) {
+  const socket = dgram.createSocket('udp4');
+
+  socket.on('message', (msg, rinfo) => {
+    let packet;
+    try {
+      packet = radius.decode({ packet: msg, secret: SECRET });
+    } catch (err) {
+      return console.error('[NAS-CoA] Paket cozulemedi:', err.message);
+    }
+    if (packet.code !== 'Disconnect-Request') return;
+
+    const sessionId = packet.attributes['Acct-Session-Id'];
+    const username = packet.attributes['User-Name'];
+    const session = activeSessions.get(sessionId);
+
+    let code = 'Disconnect-NAK';
+    if (session) {
+      activeSessions.delete(sessionId);
+      code = 'Disconnect-ACK';
+      console.log(`[NAS-CoA] Disconnect-Request alindi — ${username} (${session.ip}) agdan dusuruldu. Oturum: ${sessionId}`);
+      if (onDisconnect) {
+        try { onDisconnect({ sessionId, mac: session.mac, ip: session.ip }); } catch (_) {}
+      }
+    } else {
+      console.warn(`[NAS-CoA] Bilinmeyen oturum icin Disconnect-Request: ${sessionId} -> NAK`);
+    }
+
+    const response = radius.encode_response({ packet, code, secret: SECRET });
+    socket.send(response, 0, response.length, rinfo.port, rinfo.address);
+  });
+
+  socket.on('listening', () => {
+    const a = socket.address();
+    console.log(`[NAS-CoA] Yazilim NAS, CoA/DM icin dinliyor: ${a.address}:${a.port} (RFC 5176)`);
+  });
+
+  socket.on('error', (err) => console.error('[NAS-CoA] Soket hatasi:', err.message));
+
+  socket.bind(config.quota.coaPort);
+  return socket;
 }
 
 module.exports = {
@@ -162,4 +222,6 @@ module.exports = {
   accountingStart,
   accountingUpdate,
   accountingStop,
+  startCoaListener,
+  activeSessions,
 };

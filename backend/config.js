@@ -131,6 +131,15 @@ const config = {
     mockKey: process.env.KAMUSM_MOCK_KEY || (SIM_MODE ? devSecret('KAMUSM_MOCK_KEY') : ''),
   },
 
+  // --- Veri kotası (F-10) ---
+  // Bir oturum bu kadar MB'ı aşınca RADIUS sunucusu NAS'a RFC 5176
+  // Disconnect-Request gönderir ve oturumu kapatır. 0 = kota KAPALI (varsayılan).
+  quota: {
+    megabytes: int(process.env.QUOTA_MB, 0),
+    coaPort: int(process.env.COA_PORT, 3799),   // NAS'ın CoA/DM dinleme portu (RFC 5176)
+    coaHost: process.env.COA_HOST || '',        // boş = paketin geldiği NAS adresi kullanılır
+  },
+
   // --- Veri saklama (F-07) — 5651: iki yıl ---
   retention: {
     sessionDays: int(process.env.RETENTION_SESSION_DAYS, 730),

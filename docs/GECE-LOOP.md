@@ -85,7 +85,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 - `[x]` **A4 — `npm test` scripti** package.json'a: tüm `node --test` dosyalarını koşsun.
 
 ### B. Eksik güvenlik özellikleri
-- `[ ]` **B1 (F-10) — Veri kotası.** Accounting interim-update'te toplam bayt eşiği aşılınca
+- `[x]` **B1 (F-10) — Veri kotası.** Accounting interim-update'te toplam bayt eşiği aşılınca
   RADIUS Disconnect-Message (CoA/DM) gönder; eşik config'ten (`retention`/yeni `quota`).
   Kabul: kotayı düşük ayarla, simulate ile aşır, oturumun kapandığını logla/test et.
 - `[ ]` **B2 (F-05) — TLS kolaylığı.** `scripts/gen-cert.js` veya README komutu ile
