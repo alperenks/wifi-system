@@ -166,6 +166,37 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 - `[x]` **G6 — `netgsm.js` birim testleri.** SIM_MODE'da sahte OTP dönüşü, gerçek modda
   istek gövdesinin doğru kurulması (ağa çıkmadan, `axios` sahtelenerek). Kabul: yeşil.
 
+### H. Sonraki tur adayları (loop'un 3. turda not ettikleri)
+
+- `[ ]` **H1 (ÖNEMLİ, KVKK) — Doğrulanmış akışlar HİÇ silinmiyor.** `db.purgeExpired()`
+  şu filtreyi kullanıyor: `f.verified || f.expiresAt > flowCutoff` — yani **doğrulanmış**
+  akışlar yaşı ne olursa olsun korunuyor. Bu akışlar misafirin **telefon numarasını**
+  taşıyor; yani numaralar `db.json`'da süresiz duruyor. F-07 saklama politikası
+  (730 gün) fiilen yalnızca oturum kayıtlarına uygulanıyor.
+  Bu bir tasarım kararı değil, **hata gibi görünüyor**; ama düzeltmesi kişisel veri
+  SİLDİĞİ için loop kendiliğinden uygulamadı — Alperen onaylamalı.
+  Önerilen: `retention.sessionDays`'i aşan doğrulanmış akışları da sil (ilgili oturum
+  kaydı zaten aynı eşikte siliniyor). Kabul: eski akışlar temizleniyor, 5651 log
+  dosyaları etkilenmiyor, `npm test` yeşil.
+- `[ ]` **H2 — `simulate.js` hata yolunda Windows'ta libuv çökmesi.** Sunucuya giriş
+  yapılamayınca `process.exit(1)` çağrılıyor ve Node
+  `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` ile düşüyor — hata mesajı
+  kayboluyor. Düzeltme: `process.exit()` yerine `process.exitCode = 1; return;`.
+  Kabul: giriş başarısızken düzgün mesaj görünüyor, çökme yok.
+- `[ ]` **H3 — `npm run attack` sonrası simulate/panel 15 dk kilitli.** A7 bilerek 5 kez
+  yanlış parola deniyor; sonrasında `npm run simulate` "Yönetici girişi başarısız"
+  diyor (bu tur bir kez buna takıldı). README'de yazılı ama betik bunu kendisi
+  söylemeli: attack sonunda "NOT: giriş limiti doldu, simulate için sunucuyu yeniden
+  başlatın" satırı + isteğe bağlı `--skip-a7` bayrağı. Kabul: uyarı görünüyor,
+  bayrakla A7 atlanabiliyor.
+- `[ ]` **H4 — ESP32 protokol testini `npm test` kapsamına al.** `esp32-auth-sim.test.js`
+  kendi `main()`'i ve `process.exit`'iyle ayrı koşuyor; `node:test`'e çevrilirse tek
+  komutla tüm testler koşar. Kabul: `npm test` içinde görünüyor, `npm run test:esp32`
+  hâlâ çalışıyor.
+- `[ ]` **H5 — Kota eşiğine yaklaşan misafiri uyar.** Kota %80'i geçince captive
+  portalda/panelde uyarı; şu an misafir birden kopuyor. Kabul: eşik aşımında panelde
+  sarı uyarı, kotayı aşınca kırmızı (çubuk zaten var).
+
 ---
 
 ## İLERLEME GÜNLÜĞÜ
@@ -241,3 +272,36 @@ numarası çözülmüş 5651 logları · `verify-chain` geçerli.
    kimse oturumu kapatmıyor. Sahada bunu NAS yapar; demoda yanıltıcı görünüyor.
 4. Dal `gece-gelistirme` (commit sayısı için: `git log --oneline gece-gelistirme ^main`);
    `main`'e dokunulmadı, push yapılmadı.
+
+### 2026-09-03 — 3. tur (gece-gelistirme dalı, +6 commit)
+
+**Yapılanlar — G bölümünün tamamı:**
+
+| Görev | Sonuç | Kanıt |
+|---|---|---|
+| G1 | `syslog-server.js` birim testleri (ayrıştırıcı + 5651 satır biçimi) | 18 test; kaydedilmemesi gereken satırlar (block, IPv6, dış kaynak, kırık CSV) dahil. Log biçimi birebir doğrulanıyor — kazara değişirse test kırılır |
+| G2 | Süresi dolan oturumları kapatan temizleyici | Açılışta 5 birikmiş oturum kapatıldı; panelde "Süre doldu" rozeti (5) / "Kota doldu" (3) / "Koptu" (15) |
+| G3 | Adli aramaya tarih aralığı (`from`/`to`) | Aynı numara: tüm arşiv 2 dosya/22 kayıt, yalnızca 2026-09-01 → 1 dosya/0 kayıt, bugün → 1 dosya/22 kayıt; bozuk/ters tarih 400 |
+| G4 | `/api/dashboard/logs` artık son N satır | varsayılan 500, `?tail=10` → 10, `?tail=0` → 734; panelde "Tümünü Göster" düğmesi |
+| G5 | HTTP uç nokta testleri (gerçek Express, geçici port) | 19 test; ek bağımlılık yok (Node fetch). `server.js` artık `app`'i dışa aktarıyor, dinleme `require.main` altında |
+| G6 | `netgsm.js` birim testleri | 12 test; `axios.post` sahtelendi — **hiçbir koşulda gerçek NetGSM'e istek gitmiyor** |
+
+**Test kapısı:** `npm test` 138/138 · `simulate 3 2` üç misafir de oturum açtı ·
+`attack` 5 engellendi / 0 açık · `test:esp32` geçti · `verify-chain` zincir geçerli.
+
+**Yol boyunca bulunup düzeltilen iki hata:**
+1. `/api/dashboard/logs`, `?tail` değerini dosya var mı kontrolünden SONRA doğruluyordu;
+   log dosyası olmayan bir günde bozuk değer 200 dönüyordu. Doğrulama öne alındı.
+2. 1. turda yazdığım "kurcalanmış imza" testi kırılgandı: base64url'in SON karakterinin
+   alt bitleri çözümde yok sayıldığı için "bozulmuş" imza bazen aynı bayta çözülüyordu
+   (bu turda gerçekten kırıldı). Artık ilk karakter değiştiriliyor.
+
+**Alperen'in bakması gerekenler:**
+1. **H1 — KVKK/saklama sorunu.** Doğrulanmış OTP akışları (ve içindeki telefon
+   numaraları) `db.json`'dan HİÇ silinmiyor; şu an 61 kayıt duruyor. 730 günlük
+   saklama politikası fiilen yalnızca oturumlara uygulanıyor. Düzeltmesi kişisel veri
+   sileceği için loop uygulamadı — **onayınız gerekiyor**.
+2. **F7 hâlâ açık** — gerçek TSA kararı.
+3. `npm run attack` sonrası 15 dakika `simulate`/panel girişi kilitleniyor (H3).
+   Geçici çözüm: sunucuyu yeniden başlatın.
+4. Dal `gece-gelistirme`; `main`'e dokunulmadı, push yapılmadı.
