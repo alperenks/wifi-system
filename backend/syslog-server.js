@@ -220,7 +220,11 @@ function writeTo5651Log(record) {
     if (err) {
       console.error('[SYSLOG] Failed to write 5651 log line:', err);
     } else {
-      console.log(`[5651-LOGGED] Type: ${record.type}, Local: ${record.localIp}, Phone: ${record.phone}, Dest: ${record.destIp}`);
+      // Numara log DOSYASINA tam yazılır (5651 gereği); konsola maskeli düşer.
+      const maskeli = String(record.phone || '').length >= 10
+        ? `${String(record.phone).slice(0, 1)}** *** ${String(record.phone).slice(-4)}`
+        : record.phone;
+      console.log(`[5651-LOGGED] Type: ${record.type}, Local: ${record.localIp}, Phone: ${maskeli}, Dest: ${record.destIp}`);
     }
   });
 }

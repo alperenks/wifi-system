@@ -38,6 +38,13 @@ function clientKey(req) {
 }
 const digitsOnly = (s) => String(s || '').replace(/\D/g, '');
 
+// Kişisel veriyi konsola/loga yazarken maskele: +90 5** *** 4567
+function maskPhone(phone) {
+  const d = digitsOnly(phone);
+  if (d.length < 10) return '+90 **********';
+  return `+90 ${d.slice(0, 1)}** *** ${d.slice(-4)}`;
+}
+
 // Enable JSON parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -264,11 +271,16 @@ app.post('/api/send-otp',
   db.createGuestFlow(mac, phone, otpCode);
   const leaseIp = db.allocateIp(mac);
 
+  // GÜVENLİK: Konsol çıktısı systemd/pm2 günlüğüne, oradan da log toplayıcıya
+  // düşer — yani 5651 saklama ve silme politikasının DIŞINDA bir kişisel veri
+  // yığını olur. Bu yüzden numara maskelenir ve OTP yalnızca SIM_MODE'da
+  // yazılır: canlı bir kodun log dosyasında görünmesi, o dosyayı okuyabilen
+  // herkesin 3 dakika içinde misafir adına giriş yapabilmesi demektir.
   console.log(`\n=================== [SMS OUTBOX] ===================`);
   console.log(`Gönderilen MAC   : ${mac}`);
   console.log(`Atanan IP (kira) : ${leaseIp}`);
-  console.log(`Telefon Numarası : +90 ${phone}`);
-  console.log(`Doğrulama Kodu   : ${otpCode}`);
+  console.log(`Telefon Numarası : ${maskPhone(phone)}`);
+  console.log(`Doğrulama Kodu   : ${config.SIM_MODE ? otpCode : '******  (canlı modda loglanmaz)'}`);
   console.log(`Tarih            : ${new Date().toLocaleString()}`);
   console.log(`====================================================\n`);
 
