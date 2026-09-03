@@ -438,9 +438,17 @@
         <input type="text" id="search-input" placeholder="örn: 5551234567 veya 00:aa:bb..." onkeydown="if(event.key==='Enter')searchLogs()">
         <button class="btn" style="width:auto;" onclick="searchLogs()">Ara</button>
       </div>
+      <!-- G3: tarih aralığı — boş bırakılırsa tüm arşiv taranır -->
+      <div style="display:flex; gap:10px; align-items:center; margin-top:8px; font-size:0.75rem; color:var(--text-muted);">
+        <span>Tarih aralığı (isteğe bağlı):</span>
+        <input type="date" id="search-from" style="width:auto; padding:4px 8px;">
+        <span>—</span>
+        <input type="date" id="search-to" style="width:auto; padding:4px 8px;">
+      </div>
       <div class="log-box" id="search-results" style="height:120px; margin-top:10px; color:var(--primary);">Telefon numarası veya MAC girin.</div>
     </div>
     <div class="flex-buttons" style="margin-top: 10px; justify-content: flex-end;">
+      <button class="btn btn-secondary" id="btn-show-all-logs" onclick="showAllLogs()" style="width: auto; display: none;">Tümünü Göster</button>
       <button class="btn btn-secondary" onclick="fetchLogs()" style="width: auto;">Yenile</button>
       <button class="btn btn-secondary" onclick="clearLogsFile()" style="width: auto; border-color: var(--danger); color: var(--danger);">Dosyayı Temizle</button>
     </div>
@@ -626,14 +634,28 @@
     }
 
     // Fetch and display 5651 logs
+    // G4: Varsayilan olarak son 500 satir cekilir; "Tumunu goster" tamamini ister.
+    let logTail = 500;
+
+    async function showAllLogs() {
+      logTail = 0;
+      await fetchLogs();
+    }
+
     async function fetchLogs() {
       try {
-        const response = await fetch('/api/dashboard/logs');
+        const response = await fetch('/api/dashboard/logs?tail=' + logTail);
         const data = await response.json();
-        
+
         const logBox = document.getElementById('realtime-logs');
+        const btn = document.getElementById('btn-show-all-logs');
+        if (btn) btn.style.display = data.truncated ? 'inline-block' : 'none';
+
         if (data.logs && data.logs.trim() !== '') {
-          logBox.textContent = data.logs;
+          const baslik = data.truncated
+            ? `— son ${data.returnedLines} satir gosteriliyor (tumu icin "Tumunu Goster") —\n`
+            : '';
+          logBox.textContent = baslik + data.logs;
           // Scroll to bottom
           logBox.scrollTop = logBox.scrollHeight;
         } else {
@@ -716,11 +738,21 @@
       const q = document.getElementById('search-input').value.trim();
       const box = document.getElementById('search-results');
       if (!q) { box.textContent = 'Telefon numarası veya MAC girin.'; return; }
-      const r = await fetch('/api/dashboard/search?q=' + encodeURIComponent(q));
+      const from = document.getElementById('search-from').value;
+      const to = document.getElementById('search-to').value;
+      let url = '/api/dashboard/search?q=' + encodeURIComponent(q);
+      if (from) url += '&from=' + from;
+      if (to) url += '&to=' + to;
+
+      const r = await fetch(url);
       const d = await r.json();
-      box.textContent = d.matches.length
-        ? d.matches.map(m => `[${m.file}] ${m.line}`).join('\n')
-        : 'Kayıt bulunamadı.';
+      if (!r.ok) { box.textContent = d.message || 'Arama başarısız.'; return; }
+
+      if (!d.matches.length) { box.textContent = 'Kayıt bulunamadı.'; return; }
+      const ozet = `${d.totalMatches} kayıt bulundu (${d.scannedFiles} günlük dosya tarandı)` +
+        (d.truncated ? ` — son ${d.matches.length} tanesi gösteriliyor` : '');
+      box.textContent = ozet + '\n' + '─'.repeat(40) + '\n' +
+        d.matches.map(m => `[${m.file}] ${m.line}`).join('\n');
     }
 
     // Initial load and polling

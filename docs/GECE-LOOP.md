@@ -153,11 +153,11 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   Sahada bunu NAS yapar, simülasyonda kimse yapmıyor. Periyodik bir görev
   `startTime + timeout < now` olan oturumları Accounting-Stop ile kapatsın.
   Kabul: eski oturumlar "Koptu" görünüyor, simulate/attack yeşil.
-- `[ ]` **G3 — `/api/dashboard/search` tarama maliyeti.** Her sorgu TÜM log dosyalarını
+- `[x]` **G3 — `/api/dashboard/search` tarama maliyeti.** Her sorgu TÜM log dosyalarını
   baştan okuyor; 2 yıllık arşivde bu yüzlerce MB demek. En az bir tarih aralığı filtresi
   (`?from=&to=`) ekle, sonuç sayısını sınırla. Kabul: aralık verilince yalnızca ilgili
   dosyalar okunuyor; adli arama sonucu değişmiyor.
-- `[ ]` **G4 — `/api/dashboard/logs` tamamını döndürüyor.** Günlük dosya büyüdükçe panel
+- `[x]` **G4 — `/api/dashboard/logs` tamamını döndürüyor.** Günlük dosya büyüdükçe panel
   yavaşlar. Son N satır (`?tail=500`) döndür, panel "tümünü indir" bağlantısı versin.
   Kabul: varsayılan yanıt küçük, panel canlı log akışı bozulmuyor.
 - `[ ]` **G5 — Uç nokta (HTTP) testleri.** `server.js` `app`'i dışa aktarsın (dinlemeyi

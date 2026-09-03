@@ -482,31 +482,122 @@ app.get('/api/dashboard/sessions', (req, res) => {
   res.json(sessions);
 });
 
+// G4: Gunluk log dosyasinin TAMAMINI dondurmek panel buyudukce yavaslatiyordu.
+// Varsayilan olarak son LOG_TAIL_DEFAULT satir doner; `?tail=0` tumunu ister.
+// Dosya cok buyukse yalnizca sondaki blok okunur — tum dosya belege alinmaz.
+const LOG_TAIL_DEFAULT = 500;
+const LOG_TAIL_MAX = 20000;
+const LOG_TAIL_BYTES = 2 * 1024 * 1024;   // sondan okunacak en fazla bayt
+
+function readLogTail(filePath, maxLines) {
+  const stat = fs.statSync(filePath);
+  let content;
+  let tamDosya = true;
+
+  if (maxLines > 0 && stat.size > LOG_TAIL_BYTES) {
+    const fd = fs.openSync(filePath, 'r');
+    try {
+      const buf = Buffer.alloc(LOG_TAIL_BYTES);
+      fs.readSync(fd, buf, 0, LOG_TAIL_BYTES, stat.size - LOG_TAIL_BYTES);
+      content = buf.toString('utf8');
+      const ilkSatirSonu = content.indexOf('\n');   // bastaki satir yarim olabilir
+      if (ilkSatirSonu !== -1) content = content.slice(ilkSatirSonu + 1);
+      tamDosya = false;
+    } finally {
+      fs.closeSync(fd);
+    }
+  } else {
+    content = fs.readFileSync(filePath, 'utf8');
+  }
+
+  const lines = content.split('\n').filter(l => l.length > 0);
+  const returned = maxLines > 0 ? lines.slice(-maxLines) : lines;
+
+  return {
+    logs: returned.join('\n') + (returned.length ? '\n' : ''),
+    returnedLines: returned.length,
+    totalLines: tamDosya ? lines.length : null,   // null = dosyanin tamami okunmadi
+    truncated: returned.length < lines.length || !tamDosya,
+  };
+}
+
 app.get('/api/dashboard/logs', (req, res) => {
   const dateStr = new Date().toISOString().slice(0, 10);
   const logFilePath = path.join(__dirname, 'logs', '5651_captive', `${dateStr}.log`);
-  if (fs.existsSync(logFilePath)) {
-    res.json({ logs: fs.readFileSync(logFilePath, 'utf8') });
-  } else {
-    res.json({ logs: '' });
+
+  if (!fs.existsSync(logFilePath)) {
+    return res.json({ logs: '', returnedLines: 0, totalLines: 0, truncated: false });
   }
+
+  let tail = LOG_TAIL_DEFAULT;
+  if (req.query.tail !== undefined) {
+    const istenen = parseInt(req.query.tail, 10);
+    if (!Number.isInteger(istenen) || istenen < 0) {
+      return res.status(400).json({ message: 'tail 0 veya pozitif bir tam sayi olmali.', field: 'tail' });
+    }
+    tail = Math.min(istenen, LOG_TAIL_MAX);
+  }
+
+  res.json(readLogTail(logFilePath, tail));
 });
 
 // Query historical logs by phone or MAC (5651 audit lookup)
+// G3: Arama TUM arsivi taramak zorunda degil. `from`/`to` (YYYY-MM-DD) verilirse
+// yalnizca o araliktaki gunluk dosyalar okunur — iki yillik arsivde fark buyuktur.
+// Sonuc anlami korunur: kronolojik taramanin SON SEARCH_MAX_MATCHES eslesmesi doner,
+// ama bellek sabit tutulur (dizi kayan pencere gibi kirpilir).
+const SEARCH_MAX_MATCHES = 500;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 app.get('/api/dashboard/search', (req, res) => {
   const q = (req.query.q || '').toString().toLowerCase().trim();
-  if (!q) return res.json({ matches: [] });
+  if (!q) return res.json({ matches: [], scannedFiles: 0, totalMatches: 0, truncated: false });
+
+  const from = (req.query.from || '').toString().trim();
+  const to = (req.query.to || '').toString().trim();
+  for (const [ad, deger] of [['from', from], ['to', to]]) {
+    if (deger && !DATE_RE.test(deger)) {
+      return res.status(400).json({ message: `Geçersiz tarih: "${ad}" YYYY-MM-DD biçiminde olmalı.`, field: ad });
+    }
+  }
+  if (from && to && from > to) {
+    return res.status(400).json({ message: 'Başlangıç tarihi bitiş tarihinden sonra olamaz.', field: 'from' });
+  }
+
   const logsDir = path.join(__dirname, 'logs', '5651_captive');
   const matches = [];
+  let scannedFiles = 0;
+  let totalMatches = 0;
+
   if (fs.existsSync(logsDir)) {
-    for (const file of fs.readdirSync(logsDir).filter(f => f.endsWith('.log'))) {
+    const files = fs.readdirSync(logsDir)
+      .filter(f => /^\d{4}-\d{2}-\d{2}\.log$/.test(f))
+      .filter(f => {
+        const gun = f.slice(0, 10);
+        if (from && gun < from) return false;
+        if (to && gun > to) return false;
+        return true;
+      })
+      .sort();
+
+    for (const file of files) {
+      scannedFiles++;
       const content = fs.readFileSync(path.join(logsDir, file), 'utf8');
       for (const line of content.split('\n')) {
-        if (line.toLowerCase().includes(q)) matches.push({ file, line });
+        if (!line || !line.toLowerCase().includes(q)) continue;
+        totalMatches++;
+        matches.push({ file, line });
+        if (matches.length > SEARCH_MAX_MATCHES) matches.shift();   // son N'i tut
       }
     }
   }
-  res.json({ matches: matches.slice(-500) });
+
+  res.json({
+    matches,
+    scannedFiles,
+    totalMatches,
+    truncated: totalMatches > matches.length,
+  });
 });
 
 app.post('/api/dashboard/sign-logs', validateBody({}), (req, res) => {
