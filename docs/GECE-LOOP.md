@@ -97,7 +97,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   misafir VLAN izolasyonu (iç ağa erişim yok), pfBlockerNG DNS filtreleme, DNS zorlaması,
   gereksiz port kapatma, RADIUS+syslog yönlendirme. Örnek MikroTik komutları + pfSense adımları.
   Kabul: bir ağ yöneticisi bunu izleyip sahayı kurabilecek netlikte.
-- `[ ]` **C2 — README mimari diyagramı.** README'ye mermaid akış diyagramı (misafir→portal→
+- `[x]` **C2 — README mimari diyagramı.** README'ye mermaid akış diyagramı (misafir→portal→
   OTP→RADIUS→syslog→imza). Kabul: diyagram render oluyor, metinle tutarlı.
 - `[ ]` **C3 — `restoran_secret` genericleştirme.** Kurulum belgelerinde geçen örnek RADIUS
   sırrını `<RADIUS_SECRET_DEGERINIZ>` gibi yer tutucuya çevir. Kabul: docs'ta gerçek örnek sır yok.

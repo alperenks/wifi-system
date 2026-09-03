@@ -6,6 +6,63 @@ Saha kurulumunda kullanılacak olan Router (pfSense) ve Access Point (ESP32 Köp
 
 ---
 
+## 🗺️ Mimari — Uçtan Uca Akış
+
+Misafirin telefonundan 5651 delil arşivine kadar tek bir yolculuk var. Aşağıdaki
+diyagram, bu deponun her dosyasının o yolculukta nereye düştüğünü gösterir
+(parantez içindekiler `backend/` altındaki dosyalardır).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor M as Misafir telefonu
+    participant NAS as Ağ geçidi / NAS<br/>pfSense · MikroTik · ESP32
+    participant P as Portal<br/>server.js · 3000
+    participant SMS as NetGSM<br/>netgsm.js
+    participant DB as Veritabanı<br/>db.js · db.json
+    participant R as RADIUS<br/>radius-server.js · 1812/1813
+    participant SL as Syslog<br/>syslog-server.js · 514
+    participant KS as İmzalayıcı<br/>kamusm-signer.js
+
+    M->>NAS: Wi-Fi'ye bağlanır, DHCP ile IP alır
+    NAS->>M: Yetkisiz trafiği portala yönlendirir
+    M->>P: Telefon numarası gönderir
+    P->>DB: Akış kaydı + OTP'nin salt'lı SHA-256 özeti
+    P->>SMS: OTP gönderimi
+    Note over P,SMS: SIM_MODE'da SMS gitmez,<br/>kod ekranda görünür
+    SMS-->>M: SMS ile 6 haneli kod
+    M->>P: Kodu girer
+    P->>DB: Sabit zamanlı doğrulama, 5 denemede kilit
+    DB-->>P: Rastgele oturum sırrı üretilir
+
+    P->>R: Access-Request (kullanıcı MAC, parola oturum sırrı)
+    R-->>P: Access-Accept + Session-Timeout
+    P->>R: Accounting-Start
+    R->>DB: radacct oturumu açılır — 5651 bağlantı başlangıcı
+
+    NAS->>SL: DNS ve NAT kayıtları
+    SL->>DB: IP'den telefon numarasını çözer
+    SL->>KS: 5651 log satırı yazılır
+
+    NAS->>R: Accounting Interim-Update — harcanan bayt
+    alt Kota aşıldı
+        R->>NAS: Disconnect-Request — RFC 5176 · 3799
+        NAS-->>R: Disconnect-ACK, misafir düşürülür
+        R->>DB: Oturum kapatılır
+    end
+
+    Note over KS: Her gece 23:59
+    KS->>KS: Günlük log → gz + SHA-256 + zincir bağı → .ts damgası
+```
+
+**Diyagramın okunuşu:** portal yalnızca *kimlik* katmanıdır; internet erişimini açan
+şey RADIUS'un `Access-Accept`'idir, delili üreten şey ise syslog + imzalama zinciridir.
+Bu üçü birbirinden bağımsız çalışır — biri düşerse diğerleri kanıt üretmeye devam eder.
+Misafiri *sınırlayan* katman hiçbiri değildir; o iş ağ geçidine aittir
+([docs/AG-GECIDI-KURALLARI.md](docs/AG-GECIDI-KURALLARI.md)).
+
+---
+
 ## ⚡ Hızlı Başlangıç — Donanımsız Uçtan Uca Demo (5 dakika)
 
 Sahaya çıkmadan önce sistemin **tamamını tek bilgisayarda, ESP32/pfSense olmadan** çalıştırıp müşteriye kanıtlayabilir ve her katmanı öğrenebilirsiniz.
