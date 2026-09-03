@@ -80,7 +80,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   oturum sırrı üretiliyor, `purgeExpired` eski kayıtları siliyor. Kabul: `node --test` yeşil.
 - `[x]` **A2 — Birim testleri: auth.js.** Token üret→doğrula, süresi geçmiş token reddi,
   kurcalanmış imza reddi, scrypt parola doğru/yanlış. Kabul: yeşil.
-- `[ ]` **A3 — Birim testleri: kamusm-signer.js.** İmzala→zincir doğru, araya gün ekleme/
+- `[x]` **A3 — Birim testleri: kamusm-signer.js.** İmzala→zincir doğru, araya gün ekleme/
   silme zinciri kırıyor, içerik değişimi yakalanıyor. Kabul: yeşil.
 - `[ ]` **A4 — `npm test` scripti** package.json'a: tüm `node --test` dosyalarını koşsun.
 

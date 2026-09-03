@@ -13,6 +13,8 @@
   DELİL ZİNCİRİNE çeviren şey budur.
 
   Kullanım:  npm run verify-chain
+  Doğrulama mantığı `verifyChain(logsDir)` olarak dışa aktarılır; testler bunu
+  geçici bir log dizinine karşı çağırabilsin diye (CLI davranışı değişmedi).
 */
 
 const fs = require('fs');
@@ -20,49 +22,47 @@ const path = require('path');
 const crypto = require('crypto');
 const { LOGS_DIR, GENESIS } = require('./kamusm-signer');
 
-function fail(msg) {
-  console.log(`\n  SONUC: ZINCIR GECERSIZ\n  -> ${msg}\n`);
-  process.exit(1);
-}
+/**
+ * Zinciri doğrular. Süreci SONLANDIRMAZ — sonucu nesne olarak döndürür.
+ * @param {string} logsDir Damga dosyalarının bulunduğu dizin
+ * @returns {{ ok: boolean, verified: number, days: Array, error?: string }}
+ */
+function verifyChain(logsDir = LOGS_DIR) {
+  const days = [];
+  const fail = (error) => ({ ok: false, verified: days.length, days, error });
 
-function main() {
-  console.log('\n==================================================================');
-  console.log('  5651 LOG IMZA ZINCIRI DOGRULAMASI');
-  console.log('==================================================================\n');
+  if (!fs.existsSync(logsDir)) return fail(`Log dizini yok: ${logsDir}`);
 
-  if (!fs.existsSync(LOGS_DIR)) fail(`Log dizini yok: ${LOGS_DIR}`);
-
-  const tsFiles = fs.readdirSync(LOGS_DIR)
+  const tsFiles = fs.readdirSync(logsDir)
     .filter(f => /^\d{4}-\d{2}-\d{2}\.ts$/.test(f))
     .sort();
 
-  if (tsFiles.length === 0) fail('Hic damga (.ts) dosyasi bulunamadi. Once log imzalayin.');
+  if (tsFiles.length === 0) return fail('Hic damga (.ts) dosyasi bulunamadi. Once log imzalayin.');
 
   let expectedPrev = GENESIS;
-  let verified = 0;
 
   for (const tsFile of tsFiles) {
     const dateStr = tsFile.replace('.ts', '');
-    const tsPath = path.join(LOGS_DIR, tsFile);
-    const gzPath = path.join(LOGS_DIR, `${dateStr}.log.gz`);
+    const tsPath = path.join(logsDir, tsFile);
+    const gzPath = path.join(logsDir, `${dateStr}.log.gz`);
 
     let ts;
     try { ts = JSON.parse(fs.readFileSync(tsPath, 'utf8')); }
-    catch (e) { fail(`${tsFile} okunamadi/bozuk: ${e.message}`); }
+    catch (e) { return fail(`${tsFile} okunamadi/bozuk: ${e.message}`); }
 
     // 1. .log.gz içeriği damgadaki hash ile uyuşuyor mu?
     if (!fs.existsSync(gzPath)) {
-      fail(`${dateStr}: .log.gz dosyasi eksik — icerik silinmis, dogrulanamaz.`);
+      return fail(`${dateStr}: .log.gz dosyasi eksik — icerik silinmis, dogrulanamaz.`);
     }
     const gzData = fs.readFileSync(gzPath);
     const actualHash = crypto.createHash('sha256').update(gzData).digest('hex');
     if (actualHash !== ts.hashedMessage) {
-      fail(`${dateStr}: icerik DEGISTIRILMIS — .log.gz'nin hash'i damgayla uyusmuyor.\n     damga:  ${ts.hashedMessage}\n     gercek: ${actualHash}`);
+      return fail(`${dateStr}: icerik DEGISTIRILMIS — .log.gz'nin hash'i damgayla uyusmuyor.\n     damga:  ${ts.hashedMessage}\n     gercek: ${actualHash}`);
     }
 
     // 2. previousHash beklenen zincir başına bağlanıyor mu?
     if (ts.previousHash !== expectedPrev) {
-      fail(`${dateStr}: ZINCIR KOPUK — previousHash beklenenle uyusmuyor (arada bir gun silinmis olabilir).\n     beklenen: ${expectedPrev}\n     bulunan:  ${ts.previousHash}`);
+      return fail(`${dateStr}: ZINCIR KOPUK — previousHash beklenenle uyusmuyor (arada bir gun silinmis olabilir).\n     beklenen: ${expectedPrev}\n     bulunan:  ${ts.previousHash}`);
     }
 
     // 3. chainHash gerçekten previousHash+hash+time'dan mı türetilmiş?
@@ -70,16 +70,36 @@ function main() {
       .update(ts.previousHash + ts.hashedMessage + ts.productionTime)
       .digest('hex');
     if (recomputed !== ts.chainHash) {
-      fail(`${dateStr}: chainHash tutarsiz — damga alanlari kurcalanmis.`);
+      return fail(`${dateStr}: chainHash tutarsiz — damga alanlari kurcalanmis.`);
     }
 
-    console.log(`  [OK] ${dateStr}  chainHash=${ts.chainHash.slice(0, 16)}...${ts.mock ? '  (mock imza)' : ''}`);
+    days.push({ dateStr, chainHash: ts.chainHash, mock: !!ts.mock });
     expectedPrev = ts.chainHash;
-    verified++;
   }
 
-  console.log(`\n  SONUC: ZINCIR GECERLI — ${verified} gun dogrulandi, kopukluk yok.\n`);
+  return { ok: true, verified: days.length, days };
+}
+
+function main() {
+  console.log('\n==================================================================');
+  console.log('  5651 LOG IMZA ZINCIRI DOGRULAMASI');
+  console.log('==================================================================\n');
+
+  const result = verifyChain();
+
+  for (const d of result.days) {
+    console.log(`  [OK] ${d.dateStr}  chainHash=${d.chainHash.slice(0, 16)}...${d.mock ? '  (mock imza)' : ''}`);
+  }
+
+  if (!result.ok) {
+    console.log(`\n  SONUC: ZINCIR GECERSIZ\n  -> ${result.error}\n`);
+    process.exit(1);
+  }
+
+  console.log(`\n  SONUC: ZINCIR GECERLI — ${result.verified} gun dogrulandi, kopukluk yok.\n`);
   process.exit(0);
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { verifyChain };
