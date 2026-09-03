@@ -229,6 +229,7 @@ app.get('/api/config', (req, res) => {
     rateLimit: config.session.rateLimit,
     sessionTimeout: config.session.timeoutSeconds,
     lanPrefix: config.session.lanPrefix,
+    quotaMb: config.quota.megabytes,        // 0 = kota kapalı (F4)
   });
 });
 

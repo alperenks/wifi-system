@@ -256,6 +256,31 @@
       color: var(--text-muted);
     }
 
+    /* F4: veri kotası göstergesi */
+    .session-status.quota {
+      background: rgba(224, 49, 49, 0.15);
+      color: #ff8787;
+    }
+
+    .quota-bar {
+      width: 140px;
+      height: 5px;
+      background: rgba(161, 161, 170, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 3px;
+    }
+
+    .quota-bar span {
+      display: block;
+      height: 100%;
+      background: var(--success);
+      transition: width 0.3s ease;
+    }
+
+    .quota-bar.warn span { background: #ffc078; }
+    .quota-bar.full span { background: var(--danger); }
+
     .log-box {
       background: #09090b;
       border: 1px solid var(--border);
@@ -463,6 +488,9 @@
       }, 3000);
     }
 
+    // F4: /api/config'ten gelen oturum başına veri kotası (MB). 0 = kapalı.
+    let quotaMb = 0;
+
     // Load active sessions
     async function loadSessions() {
       try {
@@ -485,17 +513,34 @@
           // Add to session list UI
           const item = document.createElement('div');
           item.className = 'session-item';
-          const mb = ((sess.inputOctets + sess.outputOctets) / (1024 * 1024)).toFixed(1);
+          const kullanilanMb = (sess.inputOctets + sess.outputOctets) / (1024 * 1024);
+          const mb = kullanilanMb.toFixed(1);
+
+          // F4: kota açıksa kullanım çubuğu ve kalan veri
+          let quotaHtml = '';
+          if (quotaMb > 0) {
+            const oran = Math.min(100, Math.round((kullanilanMb / quotaMb) * 100));
+            const kalan = Math.max(0, quotaMb - kullanilanMb).toFixed(1);
+            const sinif = oran >= 100 ? 'full' : (oran >= 80 ? 'warn' : '');
+            quotaHtml = `
+              <div class="quota-bar ${sinif}" title="${mb} MB / ${quotaMb} MB"><span style="width:${oran}%"></span></div>
+              <span class="phone">Kota: %${oran} kullanıldı — ${kalan} MB kaldı</span>`;
+          }
+
+          const kotaDoldu = sess.terminateCause === 'quota';
           const controls = sess.active
             ? `<div style="display:flex; gap:6px;">
                  <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem;" onclick="browseFor('${sess.ip}')">Gezin</button>
                  <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem; border-color:var(--danger); color:var(--danger);" onclick="disconnect('${sess.ip}')">Kes</button>
                </div>`
-            : `<span class="session-status inactive">Koptu</span>`;
+            : (kotaDoldu
+              ? `<span class="session-status quota" title="Veri kotası aşıldı, RFC 5176 Disconnect ile düşürüldü">Kota doldu</span>`
+              : `<span class="session-status inactive">Koptu</span>`);
           item.innerHTML = `
             <div class="session-info">
               <span class="ip-mac">${sess.ip} / <span style="color: var(--primary);">${sess.username.toUpperCase()}</span></span>
               <span class="phone">Tel: +90 ${sess.phone} | ${mb} MB | ${new Date(sess.startTime).toLocaleTimeString()}</span>
+              ${quotaHtml}
             </div>
             ${controls}
           `;
@@ -658,6 +703,8 @@
         const badge = document.querySelector('.badge');
         if (c.simMode) { badge.textContent = 'Simülasyon Aktif'; }
         else { badge.textContent = 'CANLI — NetGSM'; badge.style.borderColor = 'var(--success)'; badge.style.color = 'var(--success)'; }
+        quotaMb = Number(c.quotaMb) || 0;    // F4: 0 = kota kapalı
+        loadSessions();                       // kota bilgisiyle listeyi tazele
       } catch (e) {}
     }
 

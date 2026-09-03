@@ -130,7 +130,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   sayısı belirgin düşüyor, veri kaybı yok.
 - `[x]` **F3 — `/api/health`'e `dbSizeKb` + `activeSessions`.** SQLite geçiş eşiğini
   (5 MB) izleyebilmek için. Kabul: alanlar dönüyor, sır sızmıyor, simulate yeşil.
-- `[ ]` **F4 — Kota durumunu panelde göster.** `QUOTA_MB` açıkken oturum satırında
+- `[x]` **F4 — Kota durumunu panelde göster.** `QUOTA_MB` açıkken oturum satırında
   kullanılan/kalan veri çubuğu. Kabul: kota aşan oturum panelde "kota doldu" görünüyor.
 - `[ ]` **F5 — `attack.js`'e kota/CoA senaryosu ekle.** Kotayı aşan misafirin gerçekten
   düşürüldüğünü saldırı testi de kanıtlasın. Kabul: yeni senaryo ENGELLENDI/OK dönüyor.

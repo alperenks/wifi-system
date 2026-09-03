@@ -84,7 +84,7 @@ async function enforceQuota(username, sessionId, inputOctets, outputOctets, nasA
   const mb = (total / 1024 / 1024).toFixed(1);
   console.warn(`[QUOTA] ${username} kotayi asti (${mb} MB / ${config.quota.megabytes} MB). Oturum kapatiliyor: ${sessionId}`);
 
-  db.stopSession(sessionId, inputOctets, outputOctets);
+  db.stopSession(sessionId, inputOctets, outputOctets, 'quota');
 
   const result = await sendDisconnect(username, sessionId, nasAddress);
   if (result.acked) {

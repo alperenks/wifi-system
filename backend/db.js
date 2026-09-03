@@ -259,13 +259,16 @@ class Database {
     this.save();
   }
 
-  stopSession(sessionId, inputOctets, outputOctets) {
+  // cause: oturumun neden kapandığı ('quota' | undefined). Panelde gösterilir;
+  // RADIUS Acct-Terminate-Cause karşılığının sadeleştirilmiş hâlidir.
+  stopSession(sessionId, inputOctets, outputOctets, cause) {
     const session = this.data.radacct.find(sess => sess.sessionId === sessionId && sess.active);
     if (session) {
       session.active = false;
       session.endTime = Date.now();
       session.inputOctets = inputOctets || 0;
       session.outputOctets = outputOctets || 0;
+      if (cause) session.terminateCause = cause;
       this.save();
     }
   }
