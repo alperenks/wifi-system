@@ -211,10 +211,11 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   (b) `purgeExpired` içinde aktif olmayan eski kiraları temizlemek,
   (c) sahada DHCP'yi zaten pfSense yaptığı için simülasyonda olduğu gibi bırakmak.
   Karar sizin; (a) en gerçekçisi.
-- `[ ]` **I3 — Eski veride 7 oturum hâlâ `192.168.20.100`'de aktif.** I1 yeni
-  tahsisleri düzeltti ama mevcut kayıtlar duruyor; G2 temizleyicisi 2 saat içinde
-  bunları kapatacak. Kontrol: `/api/dashboard/sessions` içinde aynı IP'de birden fazla
-  aktif oturum kalmamalı. (Bilgi amaçlı; kendiliğinden çözülür.)
+- `[~]` **I3 — Eski veride 7 oturum hâlâ `192.168.20.100`'de aktif.** 5. turda kontrol
+  edildi: bu 7 oturum I1 düzeltmesinden ÖNCE (havuz doluyken) açılmış, yaşları ~30 dk ve
+  `SESSION_TIMEOUT` 120 dk — yani G2 temizleyicisi bunları ~90 dk içinde kapatacak.
+  Yeni tahsisler zaten benzersiz IP alıyor. Ek iş gerekmiyor; sabah panelde tekrar
+  bakıp aynı IP'de birden fazla aktif oturum kalmadığını doğrulayın.
 - `[x]` **I4 — `docs/PROJE-ANLATIMI.md` güncel değil.** Dosya ağacı ve modül listesi
   son dört turda eklenen `validate.js`, `errors.js`, `scripts/gen-cert.js` ve `test/`
   dizinini bilmiyor. Kabul: belge repodaki gerçek yapıyla örtüşüyor.
