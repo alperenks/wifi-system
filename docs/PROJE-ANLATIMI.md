@@ -73,7 +73,7 @@ backend/
 ├── simulate.js        Donanımsız uçtan uca demo sürücüsü
 ├── attack.js          Güvenlik saldırı testi
 ├── verify-chain.js    İmza zinciri doğrulayıcı
-└── esp32-auth-sim.test.js   ESP32 protokol testi
+└── test/                    Birim + uç nokta testleri (npm test)
 ```
 
 Her modül tek iş yapar (separation of concerns): RADIUS'u değiştirmek portalı bozmaz.
@@ -486,7 +486,7 @@ ve bozuk imza 401, replay (aynı nonce) ikinci gönderimde 401. Yani imza + repl
   sonra "ENGELLENDİ" der. Çıktı: `docs/attack-before.txt` vs `docs/attack-after.txt`.
 - **verify-chain.js** — imza zincirini doğrular; bir günü silersen "zincir kopuk", içeriği
   değiştirirsen "içerik değiştirilmiş" der.
-- **esp32-auth-sim.test.js** — ESP32 doğrulama mantığını JS'te yansıtıp sınar (imza/replay/
+- **test/esp32-auth-sim.test.js** — ESP32 doğrulama mantığını JS'te yansıtıp sınar (imza/replay/
   stale). Donanımsız protokol kanıtı.
 
 Bir portföyde asıl fark yaratan budur: "sistemi yazdım" değil, "kırmayı denedim, şu açıkları

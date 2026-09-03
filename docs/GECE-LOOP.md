@@ -189,7 +189,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   söylemeli: attack sonunda "NOT: giriş limiti doldu, simulate için sunucuyu yeniden
   başlatın" satırı + isteğe bağlı `--skip-a7` bayrağı. Kabul: uyarı görünüyor,
   bayrakla A7 atlanabiliyor.
-- `[ ]` **H4 — ESP32 protokol testini `npm test` kapsamına al.** `esp32-auth-sim.test.js`
+- `[x]` **H4 — ESP32 protokol testini `npm test` kapsamına al.** `esp32-auth-sim.test.js`
   kendi `main()`'i ve `process.exit`'iyle ayrı koşuyor; `node:test`'e çevrilirse tek
   komutla tüm testler koşar. Kabul: `npm test` içinde görünüyor, `npm run test:esp32`
   hâlâ çalışıyor.
