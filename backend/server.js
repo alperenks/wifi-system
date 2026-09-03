@@ -522,13 +522,8 @@ function readLogTail(filePath, maxLines) {
 }
 
 app.get('/api/dashboard/logs', (req, res) => {
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const logFilePath = path.join(__dirname, 'logs', '5651_captive', `${dateStr}.log`);
-
-  if (!fs.existsSync(logFilePath)) {
-    return res.json({ logs: '', returnedLines: 0, totalLines: 0, truncated: false });
-  }
-
+  // Girdi doğrulaması dosya var mı kontrolünden ÖNCE: bozuk istek, dosyanın
+  // varlığından bağımsız olarak 400 almalı (aksi hâlde hata sessizce yutulur).
   let tail = LOG_TAIL_DEFAULT;
   if (req.query.tail !== undefined) {
     const istenen = parseInt(req.query.tail, 10);
@@ -536,6 +531,13 @@ app.get('/api/dashboard/logs', (req, res) => {
       return res.status(400).json({ message: 'tail 0 veya pozitif bir tam sayi olmali.', field: 'tail' });
     }
     tail = Math.min(istenen, LOG_TAIL_MAX);
+  }
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const logFilePath = path.join(__dirname, 'logs', '5651_captive', `${dateStr}.log`);
+
+  if (!fs.existsSync(logFilePath)) {
+    return res.json({ logs: '', returnedLines: 0, totalLines: 0, truncated: false });
   }
 
   res.json(readLogTail(logFilePath, tail));
@@ -718,17 +720,24 @@ function onListening(scheme) {
 }
 
 // F-05: TLS açıksa HTTPS ile dinle (varsayılan kapalı — SIM demosu HTTP ile çalışır).
-if (config.tls.enabled) {
-  try {
-    const creds = {
-      key: fs.readFileSync(config.tls.keyPath),
-      cert: fs.readFileSync(config.tls.certPath),
-    };
-    https.createServer(creds, app).listen(PORT, () => onListening('https'));
-  } catch (e) {
-    console.error('[TLS] Sertifika yüklenemedi, başlatılamıyor:', e.message);
-    process.exit(1);
+function start() {
+  if (config.tls.enabled) {
+    try {
+      const creds = {
+        key: fs.readFileSync(config.tls.keyPath),
+        cert: fs.readFileSync(config.tls.certPath),
+      };
+      return https.createServer(creds, app).listen(PORT, () => onListening('https'));
+    } catch (e) {
+      console.error('[TLS] Sertifika yüklenemedi, başlatılamıyor:', e.message);
+      process.exit(1);
+    }
   }
-} else {
-  app.listen(PORT, () => onListening('http'));
+  return app.listen(PORT, () => onListening('http'));
 }
+
+// G5: `node server.js` ile çalıştırıldığında dinlemeye başlar; `require` edildiğinde
+// (uç nokta testleri) yalnızca `app` verilir — RADIUS/Syslog/cron kaldırılmaz.
+if (require.main === module) start();
+
+module.exports = { app, start };
