@@ -117,8 +117,72 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   `docs/TSA-ENTEGRASYON-PLANI.md` olarak yaz. Kod yazma — plan çıkar.
 - `[x]` **E2 — db.json → SQLite göç değerlendirmesi.** Artı/eksi, göç eskizi. Belge olarak.
 
+### F. Sonraki tur adayları (loop'un 1. turda not ettikleri — öncelik Alperen'in)
+> Bunlar backlog'daki işler yapılırken ortaya çıkan, gerçek gözleme dayanan maddelerdir.
+
+- `[ ]` **F1 — `db.json` atomik yazma.** `save()` şu an doğrudan üstüne yazıyor; yazma
+  sırasında kesinti olursa dosya yarım kalır ve `load()` sessizce BOŞ veritabanına
+  döner (delil kaybı). Çözüm: geçici dosyaya yaz + `rename`. Kabul: yarım dosya
+  simülasyonunda eski veri korunuyor; `npm test` yeşil.
+  Gerekçe: `docs/SQLITE-DEGERLENDIRMESI.md` §2.2.
+- `[ ]` **F2 — `save()` biriktirme (debounce).** 11 çağrı noktası var; ardışık yazmaları
+  200 ms'de topla, kapanışta flush. Kabul: `npm run simulate 6 3` sırasında yazma
+  sayısı belirgin düşüyor, veri kaybı yok.
+- `[ ]` **F3 — `/api/health`'e `dbSizeKb` + `activeSessions`.** SQLite geçiş eşiğini
+  (5 MB) izleyebilmek için. Kabul: alanlar dönüyor, sır sızmıyor, simulate yeşil.
+- `[ ]` **F4 — Kota durumunu panelde göster.** `QUOTA_MB` açıkken oturum satırında
+  kullanılan/kalan veri çubuğu. Kabul: kota aşan oturum panelde "kota doldu" görünüyor.
+- `[ ]` **F5 — `attack.js`'e kota/CoA senaryosu ekle.** Kotayı aşan misafirin gerçekten
+  düşürüldüğünü saldırı testi de kanıtlasın. Kabul: yeni senaryo ENGELLENDI/OK dönüyor.
+- `[ ]` **F6 — Yönetici giriş limiti test akışını kilitliyor.** `npm run attack` 5 kez
+  yanlış giriş denediği için sonrasında 15 dakika `/api/auth/login` 429 dönüyor; panel
+  elle kontrol edilemiyor. Öneri: limiti aşan istekler için `Retry-After` başlığı +
+  README'ye not, ya da attack sonrası uyarı satırı. Kabul: davranış belgelenmiş.
+- `[ ]` **F7 — (Alperen'e soru) Gerçek TSA kararı.** `docs/TSA-ENTEGRASYON-PLANI.md`
+  §7'deki dört karar verilmeden kod yazılmamalı.
+
 ---
 
 ## İLERLEME GÜNLÜĞÜ
 
-> Loop her turda buraya yazar. (Henüz boş — ilk tur burayı dolduracak.)
+> Loop her turda buraya yazar.
+
+### 2026-09-03 — 1. tur (gece-gelistirme dalı, 15 commit)
+
+**Yapılanlar — backlog'un A/B/C/D/E bölümlerinin TAMAMI bitti:**
+
+| Görev | Sonuç | Kanıt |
+|---|---|---|
+| A1-A4 | db.js, auth.js, kamusm-signer.js birim testleri + `npm test` | 78 test, hepsi yeşil |
+| B1 (F-10) | Veri kotası + gerçek RFC 5176 Disconnect | 6 entegrasyon testi (gerçek UDP) + `QUOTA_MB=2` ile canlı koşu: iki misafir de düşürüldü, `Disconnect-ACK` alındı |
+| B2 (F-05) | `npm run gen-cert` (openssl, ek bağımlılık yok) | `TLS_ENABLED=true` ile `https://localhost:3000/captive` → HTTP 200, TLSv1.3 |
+| C1 (F-11) | `docs/AG-GECIDI-KURALLARI.md` — pfSense + MikroTik kural seti | belge, doğrulama kontrol listesiyle |
+| C2 | README mermaid uçtan uca diyagramı | mermaid 10.9.1 ile tarayıcıda render edildi (RENDER OK) |
+| C3 | Belgelerdeki örnek RADIUS sırrı yer tutucuya çevrildi | `.md` dosyalarında gerçek sır kalmadı |
+| D1 | `/api/health` | kimlik doğrulamasız HTTP 200 |
+| D2 | Portalda kalan OTP hakkı + kilit durumu | tarayıcıda 4-3-2-1 sayımı, 5.'de form kilitlendi (ekran görüntüsü alındı) |
+| D3 | `validate.js` — tüm POST uçlarında gövde şeması | 13 test; bozuk MAC/OTP/fazladan alan → 400, sunucu ayakta |
+| D4 | `errors.js` — merkezi hata katmanı | 9 test; bozuk JSON artık HTML+stack yerine JSON 400 |
+| E1 | `docs/TSA-ENTEGRASYON-PLANI.md` (yalnızca plan) | `.tsq` üretimi yerelde denendi, özet dosyayla eşleşti |
+| E2 | `docs/SQLITE-DEGERLENDIRMESI.md` (yalnızca değerlendirme) | ölçüm: ~490 bayt/kayıt, 2 yılda ~43 MB tam-dosya yazımı |
+
+**Her turda koşturulan test kapısı:** `npm test` (78/78) · `npm run simulate` (tüm
+misafirler oturum açtı) · `npm run attack` (5 engellendi, 0 açık) · panelde oturumlar
+ve telefon numarası çözülmüş 5651 log satırları · `npm run verify-chain` (zincir geçerli).
+
+**Geri alınan bir şey yok** — kırık testle commit atılmadı.
+
+**Tek davranış değişikliği riski:** `verify-chain.js` artık `verifyChain(logsDir)`
+fonksiyonunu dışa aktarıyor ve CLI'yi `require.main` altında koşuyor. Doğrulama
+kuralları ve çıktı birebir aynı; komut öncesi/sonrası çıktı karşılaştırıldı.
+
+**Alperen'in bakması gerekenler:**
+1. **F7 / TSA kararı** — gerçek zaman damgası için KamuSM sözleşmesi ve 4 karar
+   (`docs/TSA-ENTEGRASYON-PLANI.md` §7). Sahaya çıkmadan ÖNCE kapanmalı.
+2. **SQLite** — şimdi gerekmiyor; ama F1 (atomik yazma) delil kaybı riskini
+   kapattığı için ucuz ve değerli (`docs/SQLITE-DEGERLENDIRMESI.md` §7).
+3. **Kota varsayılanı kapalı** (`QUOTA_MB=0`). Restoranda misafir başına sınır
+   istiyor musunuz? İstiyorsanız `.env` değerini siz belirlemelisiniz.
+4. **pfSense'te CoA/3799 desteği** donanım/kurulum gerektiren tek doğrulama —
+   `docs/AG-GECIDI-KURALLARI.md` §6.5'teki testi sahada yapmak gerekiyor.
+5. Dal `gece-gelistirme`, 15 commit, `main`'e dokunulmadı, push yapılmadı.
