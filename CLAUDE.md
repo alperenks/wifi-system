@@ -70,9 +70,10 @@ SMS + real pfSense/ESP32.
 - The project lives under OneDrive and is not a git repo — file-lock errors
   may come from OneDrive sync; retry, don't suggest moving the project.
 - `pfsense-files/*.php` and `esp32-*/*.ino` are a different world from the
-  backend (PHP/MySQL, Arduino C++). The `restoran_secret`, table names
-  (`radcheck`/`radreply`), and SSID (`Restoran_Misafir_Wifi`) there must match
-  the backend side — if you change one, update them all.
+  backend (PHP/MySQL, Arduino C++). The RADIUS shared secret (`RADIUS_SECRET`),
+  table names (`radcheck`/`radreply`), and SSID (`Restoran_Misafir_Wifi`) there
+  must match the backend side — if you change one, update them all. Setup docs
+  carry the `<RADIUS_SECRET_DEGERINIZ>` placeholder, never a real secret.
 
 ## Change verification (after every backend change)
 

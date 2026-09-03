@@ -18,14 +18,16 @@ report — only say "set/empty"):
    - Is `SIM_MODE=false`? (Required for the field; if still true, ⚠️ "demo mode")
    - Are `NETGSM_USERNAME`, `NETGSM_PASSWORD`, `NETGSM_HEADER` set?
    - Is `ESP32_AP_URL` set? (If empty, authorization never reaches the ESP32)
-   - Is `RADIUS_SECRET` still the default `restoran_secret`? If so, ⚠️ suggest
-     changing it.
+   - Is `RADIUS_SECRET` still a demo default (e.g. `restoran_secret`,
+     `sim-radius-secret`) or empty? If so, ⚠️ suggest generating a real one.
 
 **2. Backend ↔ pfSense consistency:**
    - Do the NetGSM fields, rate limit, and simulation flag in
      `pfsense-files/captiveportal-config.php` contradict the backend `.env` logic?
-   - Is the RADIUS shared secret identical in all three places: backend config,
-     the pfSense instructions in README (`restoran_secret`), and the PHP config?
+   - Is the RADIUS shared secret identical in both places that hold a real value:
+     backend `.env` (`RADIUS_SECRET`) and the PHP config? Setup docs must only
+     carry the `<RADIUS_SECRET_DEGERINIZ>` placeholder — flag any real secret
+     that appears in a .md file.
    - Do the table names in the `radius.sql` schema (`radcheck`, `radreply`)
      match what the PHP side uses?
 

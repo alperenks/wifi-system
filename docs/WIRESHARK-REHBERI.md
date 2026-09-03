@@ -35,7 +35,8 @@ Müşteriye "sistem gerçekten konuşuyor" demenin en ikna edici yolu, paketleri
 ## RADIUS paketini "deşifre" ettirmek (opsiyonel)
 
 RADIUS'un User-Password/Authenticator alanlarını Wireshark'ta doğrulatmak isterseniz shared secret'ı girin:
-**Edit → Preferences → Protocols → RADIUS → Shared secret** = `restoran_secret` (veya `.env` içindeki `RADIUS_SECRET`).
+**Edit → Preferences → Protocols → RADIUS → Shared secret** = `backend/.env` içindeki
+`RADIUS_SECRET` değeri (SIM_MODE'da tanımlı değilse `sim-radius-secret` varsayılanı kullanılır).
 
 ## Kanıt paketi (pcap) kaydetme
 

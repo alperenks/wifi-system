@@ -90,8 +90,9 @@ New-NetFirewallRule -DisplayName "WifiSys Syslog 514"   -Direction Inbound -Prot
 **4. pfSense Web UI ayarları** (`http://192.168.56.2` — paket kurulumu YOK)
 
 1. **System > User Manager > Authentication Servers** → Add:
-   Type `RADIUS`, IP `192.168.56.1`, Shared Secret `restoran_secret`
-   (`.env`'deki `RADIUS_SECRET` ile aynı), Services `Authentication and Accounting`,
+   Type `RADIUS`, IP `192.168.56.1`, Shared Secret `<RADIUS_SECRET_DEGERINIZ>`
+   (`backend/.env` içindeki `RADIUS_SECRET` ile **birebir aynı** olmalı; belgede
+   gerçek bir sır yazmıyoruz), Services `Authentication and Accounting`,
    Auth port `1812`, Acct port `1813`.
 2. **Services > Captive Portal** → Add Zone (örn. `misafir`, LAN interface) → Enable.
    - **Authentication Method**: "Use an Authentication backend" → yukarıdaki RADIUS sunucusu.

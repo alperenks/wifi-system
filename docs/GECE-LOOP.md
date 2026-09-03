@@ -99,7 +99,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   Kabul: bir ağ yöneticisi bunu izleyip sahayı kurabilecek netlikte.
 - `[x]` **C2 — README mimari diyagramı.** README'ye mermaid akış diyagramı (misafir→portal→
   OTP→RADIUS→syslog→imza). Kabul: diyagram render oluyor, metinle tutarlı.
-- `[ ]` **C3 — `restoran_secret` genericleştirme.** Kurulum belgelerinde geçen örnek RADIUS
+- `[x]` **C3 — `restoran_secret` genericleştirme.** Kurulum belgelerinde geçen örnek RADIUS
   sırrını `<RADIUS_SECRET_DEGERINIZ>` gibi yer tutucuya çevir. Kabul: docs'ta gerçek örnek sır yok.
 
 ### D. Kalite / sağlamlık

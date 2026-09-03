@@ -250,7 +250,8 @@ Kurulumları tamamladıktan sonra pfSense Web arayüzüne (tarayıcıdan LAN IP'
 
 ### 1. FreeRADIUS Kurulumu ve SQL Bağlantısı
 1. **System > Package Manager > Available Packages** kısmından `freeradius3` paketini bulun ve kurun.
-2. **Services > FreeRADIUS > NAS/Clients** sekmesine gidin. Add diyerek Client IP: `127.0.0.1`, Client Shared Secret: `restoran_secret` girin ve kaydedin.
+2. **Services > FreeRADIUS > NAS/Clients** sekmesine gidin. Add diyerek Client IP: `127.0.0.1`, Client Shared Secret: `<RADIUS_SECRET_DEGERINIZ>` girin ve kaydedin
+   (bu değer `backend/.env` içindeki `RADIUS_SECRET` ile birebir aynı olmalıdır).
 3. **Services > FreeRADIUS > Interfaces** sekmesine gidin. Add diyerek Port 1812 (Authentication) ve Port 1813 (Accounting) için interface ekleyin. IP adresi olarak `127.0.0.1` seçilmelidir.
 4. **Services > FreeRADIUS > SQL** sekmesine gidin. `Enable SQL` kutusunu işaretleyin. Database: `MySQL`, Server: `localhost`, Port: `3306`, User: `root`, Password: `<mysql_sifreniz>`, DB Name: `radius` yazarak kaydedin.
 
