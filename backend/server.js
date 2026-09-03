@@ -194,6 +194,18 @@ app.get('/api/auth/me', (req, res) => {
 });
 
 // Expose runtime config (mode badge etc.) to the UI
+// Sağlık kontrolü (D1). Kimlik doğrulaması YOKTUR: izleme aracı, yük dengeleyici
+// veya saha teknisyeni "portal ayakta mı?" sorusunu tek istekle yanıtlayabilsin.
+// Bu yüzden sır/kişisel veri sızdırmaz — yalnızca çalışma durumu döner.
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: Math.round(process.uptime()),          // saniye
+    mode: config.SIM_MODE ? 'simulation' : 'live',
+    time: new Date().toISOString(),
+  });
+});
+
 app.get('/api/config', (req, res) => {
   res.json({
     simMode: config.SIM_MODE,
