@@ -73,6 +73,18 @@ npm run test:esp32      # ESP32 yetkilendirme protokolünü (imza/replay/stale) 
 - **ESP32 izin listesi** fiili trafik engellemesi yapmaz; L2 köprüde asıl uygulama
   ağ geçidinin (pfSense) işidir. Amaç yetkilendirme kanalının imzalı/replay'e kapalı olması.
 - **Portal TLS'i** varsayılan kapalıdır (SIM demosu HTTP). Sahada `TLS_ENABLED=true` şarttır.
+  Test/saha sertifikasını tek komutla üretebilirsiniz (ek bağımlılık yok, sistemdeki
+  `openssl` kullanılır):
+
+  ```bash
+  cd backend
+  npm run gen-cert                  # CN=localhost
+  npm run gen-cert -- 192.168.20.1  # portal IP'sini de SAN'a ekler
+  ```
+
+  Ardından `.env` içine `TLS_ENABLED=true`, `TLS_KEY_PATH=certs/portal-key.pem`,
+  `TLS_CERT_PATH=certs/portal-cert.pem` yazın. Kendinden imzalı sertifikada tarayıcı
+  uyarı gösterir; müşteri kurulumunda gerçek CA (Let's Encrypt vb.) tercih edin.
 - Firmware (`esp32-bridge.ino`) **gerçek ESP32 donanımında doğrulandı** (2026-09-03):
   imzalı istek kabul, imzasız/bozuk imza ret, replay (tekrar nonce) ret — beş testin
   beşi geçti (`docs/esp32-hw-test-sonuc.txt`). Yerel protokol testi de mevcut:

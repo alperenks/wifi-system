@@ -9,6 +9,7 @@
     "simulate": "node simulate.js",
     "attack": "node attack.js",
     "verify-chain": "node verify-chain.js",
+    "gen-cert": "node scripts/gen-cert.js",
     "test:esp32": "node esp32-auth-sim.test.js"
   },
   "dependencies": {

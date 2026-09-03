@@ -19,6 +19,7 @@ backend/logs/
 esp32-bridge/secrets.h
 
 # TLS sertifikaları / anahtarlar
+backend/certs/
 *.pem
 *.key
 *.crt

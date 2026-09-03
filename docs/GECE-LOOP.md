@@ -88,7 +88,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 - `[x]` **B1 (F-10) — Veri kotası.** Accounting interim-update'te toplam bayt eşiği aşılınca
   RADIUS Disconnect-Message (CoA/DM) gönder; eşik config'ten (`retention`/yeni `quota`).
   Kabul: kotayı düşük ayarla, simulate ile aşır, oturumun kapandığını logla/test et.
-- `[ ]` **B2 (F-05) — TLS kolaylığı.** `scripts/gen-cert.js` veya README komutu ile
+- `[x]` **B2 (F-05) — TLS kolaylığı.** `scripts/gen-cert.js` veya README komutu ile
   kendinden imzalı sertifika üret; `TLS_ENABLED=true` ile HTTPS başladığını doğrula.
   Kabul: TLS açıkken `https://localhost:3000/captive` yanıt veriyor (öz-imzalı uyarı normal).
 
