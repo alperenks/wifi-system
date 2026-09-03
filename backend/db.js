@@ -91,7 +91,27 @@ class Database {
         return candidate;
       }
     }
+
+    // I1: Havuz doldu. ESKİDEN buradaki geri dönüş, havuzun İLK adresini
+    // (ör. .100) HER yeni cihaza veriyordu; sonuçta onlarca MAC aynı IP'yi
+    // paylaşıyor ve 5651 kaydında IP -> telefon eşlemesi belirsizleşiyordu.
+    // Artık gerçek bir DHCP sunucusu gibi davranıyoruz: AKTİF OTURUMU OLMAYAN
+    // bir kirayı geri alıp yeni cihaza veriyoruz.
+    const aktifIpler = new Set(this.data.radacct.filter(s => s.active).map(s => s.ip));
+    for (const [eskiMac, ip] of Object.entries(this.data.leases)) {
+      if (aktifIpler.has(ip)) continue;              // kullanımda, dokunma
+      delete this.data.leases[eskiMac];
+      this.data.leases[cleanMac] = ip;
+      this.save();
+      console.warn(`[DHCP] Havuz doldu: ${ip} kirasi ${eskiMac} cihazindan geri alinip ${cleanMac} cihazina verildi.`);
+      return ip;
+    }
+
+    // Her adres aktif bir oturumda: gerçekten yer yok. Eski davranışa düşüyoruz
+    // ama SESSİZ değil — bu, ağ kapasitesinin aşıldığı anlamına gelir.
     const fallback = `${lanPrefix}.${leaseStart}`;
+    console.error(`[DHCP] KAPASITE ASILDI: bos IP yok, ${cleanMac} icin ${fallback} PAYLASILIYOR. ` +
+      'Havuzu (LEASE_START/LEASE_END) genisletin — ayni IP birden fazla misafirde 5651 kaydini belirsizlestirir.');
     this.data.leases[cleanMac] = fallback;
     this.save();
     return fallback;
@@ -283,8 +303,11 @@ class Database {
   }
 
   // --- IP to Phone Mapping ---
+  // I1: Aynı IP'de birden fazla aktif oturum varsa (havuz doldu, paylaşım oldu)
+  // EN SON açılan oturum esas alınır — trafiği o an kullanan odur. Eskiden ilk
+  // eşleşme dönüyordu ve log yanlış numaraya bağlanabiliyordu.
   getPhoneByIp(ip) {
-    const activeSession = this.data.radacct.find(sess => sess.ip === ip && sess.active);
+    const activeSession = [...this.data.radacct].reverse().find(sess => sess.ip === ip && sess.active);
     if (activeSession) {
       const verifiedFlow = this.data.guestFlows.find(f => f.mac === activeSession.username && f.verified);
       if (verifiedFlow) return verifiedFlow.phone;

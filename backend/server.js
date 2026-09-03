@@ -430,7 +430,8 @@ app.post('/api/sim/browse', auth.requireAuth,
   }
 
   // Simulate traffic accounting growth for the active session
-  const session = db.data.radacct.find(s => s.ip === ip && s.active);
+  // I1: ayni IP'de birden fazla aktif oturum olabilir — en guncelini hedefle.
+  const session = [...db.data.radacct].reverse().find(s => s.ip === ip && s.active);
   if (session) {
     const inc = 1024 * 1024 * count; // ~1MB per visit
     try {
@@ -450,7 +451,7 @@ app.post('/api/sim/disconnect', auth.requireAuth,
   }),
   wrapAsync(async (req, res) => {
   const { ip, mac } = req.body;
-  const session = db.data.radacct.find(s => s.active && (s.ip === ip || s.username === (mac || '').toLowerCase().replace(/[^a-f0-9]/g, '')));
+  const session = [...db.data.radacct].reverse().find(s => s.active && (s.ip === ip || s.username === (mac || '').toLowerCase().replace(/[^a-f0-9]/g, '')));
   if (!session) return res.status(404).json({ message: 'Aktif oturum bulunamadı.' });
   try {
     await radiusClient.accountingStop(session.username, session.sessionId,

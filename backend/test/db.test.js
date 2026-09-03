@@ -425,3 +425,57 @@ test('kota ile kapanan oturum, sure dolmasi ile kapananla karismaz', () => {
   assert.strictEqual(db.data.radacct[0].terminateCause, 'quota', 'kota sebebi korunmali');
   assert.strictEqual(db.data.radacct[1].terminateCause, 'timeout');
 });
+
+// --- I1: Kira havuzu tukendiginde ne oluyor? ---------------------------------
+
+test('havuz dolunca aktif oturumu OLMAYAN kira geri alinir', () => {
+  // Havuz testte 100-102 (3 adres)
+  const a = db.allocateIp('aa:00:00:00:00:01');
+  const b = db.allocateIp('aa:00:00:00:00:02');
+  const c = db.allocateIp('aa:00:00:00:00:03');
+  assert.deepStrictEqual([a, b, c], ['192.168.20.100', '192.168.20.101', '192.168.20.102']);
+
+  // Yalnizca ilk iki adres aktif oturumda; ucuncusu bos.
+  db.startSession('s-a', 'aa0000000001', a);
+  db.startSession('s-b', 'aa0000000002', b);
+
+  const yeni = db.allocateIp('aa:00:00:00:00:04');
+
+  assert.strictEqual(yeni, c, 'bos duran kira geri alinip yeni cihaza verilmeli');
+  assert.strictEqual(db.data.leases['aa0000000003'], undefined, 'eski kira dusurulmeli');
+  assert.strictEqual(db.data.leases['aa0000000004'], c);
+});
+
+test('aktif oturumdaki kiralar geri alinmaz', () => {
+  const a = db.allocateIp('aa:00:00:00:00:01');
+  const b = db.allocateIp('aa:00:00:00:00:02');
+  const c = db.allocateIp('aa:00:00:00:00:03');
+  db.startSession('s-a', 'aa0000000001', a);
+  db.startSession('s-b', 'aa0000000002', b);
+  db.startSession('s-c', 'aa0000000003', c);
+
+  const yeni = db.allocateIp('aa:00:00:00:00:05');
+
+  // Hepsi kullanimda: eski davranisa dusulur ama kiralar korunur.
+  assert.strictEqual(db.data.leases['aa0000000001'], a);
+  assert.strictEqual(db.data.leases['aa0000000002'], b);
+  assert.strictEqual(db.data.leases['aa0000000003'], c);
+  assert.strictEqual(yeni, '192.168.20.100', 'kapasite asiminda ilk adres paylasilir');
+});
+
+test('ayni IP birden fazla aktif oturumda ise EN SON oturumun telefonu doner', () => {
+  const ip = '192.168.20.100';
+
+  db.createGuestFlow('aa:00:00:00:00:01', '5551110001', '123456');
+  db.verifyGuestFlow('aa:00:00:00:00:01', '123456');
+  db.createGuestFlow('aa:00:00:00:00:02', '5552220002', '123456');
+  db.verifyGuestFlow('aa:00:00:00:00:02', '123456');
+
+  // Iki oturum ayni IP'de aktif (havuz tukenmis senaryosu)
+  db.data.radacct.push(
+    { sessionId: 'eski', username: 'aa0000000001', ip, startTime: Date.now() - 60000, endTime: null, active: true },
+    { sessionId: 'yeni', username: 'aa0000000002', ip, startTime: Date.now(), endTime: null, active: true },
+  );
+
+  assert.strictEqual(db.getPhoneByIp(ip), '5552220002', 'en son oturumun telefonu esas alinmali');
+});
