@@ -113,7 +113,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   500 JSON'a dönüşür, stack sızmaz; regresyon yeşil.
 
 ### E. Öneriler (Alperen kararı — loop UYGULAMAZ, sadece araştırıp yazar)
-- `[ ]` **E1 — Gerçek RFC 3161 (KamuSM TSA) entegrasyon notu.** `.tsq`/`.tsr` akışını araştır,
+- `[x]` **E1 — Gerçek RFC 3161 (KamuSM TSA) entegrasyon notu.** `.tsq`/`.tsr` akışını araştır,
   `docs/TSA-ENTEGRASYON-PLANI.md` olarak yaz. Kod yazma — plan çıkar.
 - `[ ]` **E2 — db.json → SQLite göç değerlendirmesi.** Artı/eksi, göç eskizi. Belge olarak.
 
