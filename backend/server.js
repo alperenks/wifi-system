@@ -10,6 +10,7 @@ const db = require('./db');
 const netgsm = require('./netgsm');
 const radiusClient = require('./radius-client');
 const auth = require('./auth');
+const { validateBody } = require('./validate');
 const { startRadiusServer } = require('./radius-server');
 const { startSyslogServer } = require('./syslog-server');
 const { startCronSigner, signDailyLog, purgeOldLogs } = require('./kamusm-signer');
@@ -171,7 +172,12 @@ app.get('/', (req, res) => {
 // ==========================================================================
 //  Yönetici Kimlik Doğrulama API'si (F-12)
 // ==========================================================================
-app.post('/api/auth/login', loginLimiter, (req, res) => {
+app.post('/api/auth/login', loginLimiter,
+  validateBody({
+    user: { type: 'string', required: true, maxLength: 64 },
+    password: { type: 'string', required: true, maxLength: 256 },
+  }),
+  (req, res) => {
   const { user, password } = req.body || {};
   const okUser = (user || '') === config.admin.user;
   const okPass = auth.verifyPassword(password || '', config.admin.passwordHash);
@@ -222,7 +228,12 @@ app.get('/api/config', (req, res) => {
 
 // Send OTP via SMS (Simulated / NetGSM)
 // Sıra: telefon doğrula -> telefon günlük limit -> IP+telefon saatlik/dakikalık limit
-app.post('/api/send-otp', validatePhone, phoneDailyLimiter, smsHourlyLimiter, smsLimiter, async (req, res) => {
+app.post('/api/send-otp',
+  validateBody({
+    mac: { type: 'mac', required: true },
+    phone: { type: 'phone', required: true },
+  }),
+  validatePhone, phoneDailyLimiter, smsHourlyLimiter, smsLimiter, async (req, res) => {
   const { mac, phone } = req.body;
 
   if (!mac || !phone) {
@@ -266,7 +277,12 @@ app.post('/api/send-otp', validatePhone, phoneDailyLimiter, smsHourlyLimiter, sm
 });
 
 // Verify OTP -> authenticate device through the REAL RADIUS path
-app.post('/api/verify-otp', verifyLimiter, async (req, res) => {
+app.post('/api/verify-otp', verifyLimiter,
+  validateBody({
+    mac: { type: 'mac', required: true },
+    otp: { type: 'otp', required: true },
+  }),
+  async (req, res) => {
   const { mac, otp } = req.body;
 
   if (!mac || !otp) {
@@ -349,7 +365,12 @@ async function notifyEsp32Authorize(mac) {
 // ==========================================================================
 
 // Full virtual guest: phone -> OTP -> verify -> RADIUS session, in one call
-app.post('/api/sim/full-guest', auth.requireAuth, async (req, res) => {
+app.post('/api/sim/full-guest', auth.requireAuth,
+  validateBody({
+    phone: { type: 'phone' },
+    mac: { type: 'mac' },
+  }),
+  async (req, res) => {
   if (!config.SIM_MODE) {
     return res.status(400).json({ message: 'Bu uç yalnızca SIM_MODE aktifken kullanılabilir.' });
   }
@@ -375,7 +396,12 @@ app.post('/api/sim/full-guest', auth.requireAuth, async (req, res) => {
 });
 
 // Generate realistic browsing traffic (DNS + NAT syslog) for an active IP
-app.post('/api/sim/browse', auth.requireAuth, async (req, res) => {
+app.post('/api/sim/browse', auth.requireAuth,
+  validateBody({
+    ip: { type: 'ip', required: true },
+    count: { type: 'int', min: 1, max: 25 },
+  }),
+  async (req, res) => {
   const { ip } = req.body;
   const count = Math.min(parseInt(req.body.count || '5', 10), 25);
   if (!ip) return res.status(400).json({ message: 'ip alanı gereklidir.' });
@@ -403,7 +429,12 @@ app.post('/api/sim/browse', auth.requireAuth, async (req, res) => {
 });
 
 // Disconnect a device (RADIUS Accounting-Stop)
-app.post('/api/sim/disconnect', auth.requireAuth, async (req, res) => {
+app.post('/api/sim/disconnect', auth.requireAuth,
+  validateBody({
+    ip: { type: 'ip' },
+    mac: { type: 'mac' },
+  }),
+  async (req, res) => {
   const { ip, mac } = req.body;
   const session = db.data.radacct.find(s => s.active && (s.ip === ip || s.username === (mac || '').toLowerCase().replace(/[^a-f0-9]/g, '')));
   if (!session) return res.status(404).json({ message: 'Aktif oturum bulunamadı.' });
@@ -464,7 +495,7 @@ app.get('/api/dashboard/search', (req, res) => {
   res.json({ matches: matches.slice(-500) });
 });
 
-app.post('/api/dashboard/sign-logs', (req, res) => {
+app.post('/api/dashboard/sign-logs', validateBody({}), (req, res) => {
   const todayStr = new Date().toISOString().slice(0, 10);
   try {
     const tsaResponse = signDailyLog(todayStr);
@@ -480,7 +511,7 @@ app.post('/api/dashboard/sign-logs', (req, res) => {
 
 // F-12 ek koruma: 5651 delil logu ÜRETİMDE API ile silinemez. Bu uç yalnızca
 // SIM_MODE'da (demo temizliği için) çalışır. Kanunun istediği değiştirilemezliktir.
-app.post('/api/dashboard/clear-logs', (req, res) => {
+app.post('/api/dashboard/clear-logs', validateBody({}), (req, res) => {
   if (!config.SIM_MODE) {
     return res.status(403).json({ message: '5651 logları üretim modunda API ile silinemez.' });
   }
@@ -494,7 +525,7 @@ app.post('/api/dashboard/clear-logs', (req, res) => {
 });
 
 // Reset all in-memory/JSON state (clean demo) — yalnızca SIM_MODE
-app.post('/api/dashboard/reset', (req, res) => {
+app.post('/api/dashboard/reset', validateBody({}), (req, res) => {
   if (!config.SIM_MODE) {
     return res.status(403).json({ message: 'Durum sıfırlama yalnızca simülasyon modunda kullanılabilir.' });
   }
@@ -508,7 +539,16 @@ app.post('/api/dashboard/reset', (req, res) => {
 });
 
 // Manual mock syslog (kept for backward compatibility)
-app.post('/api/dashboard/mock-syslog', (req, res) => {
+app.post('/api/dashboard/mock-syslog',
+  validateBody({
+    type: { type: 'string', required: true, values: ['dns', 'nat'] },
+    localIp: { type: 'ip', required: true },
+    domain: { type: 'string', maxLength: 253 },
+    destIp: { type: 'ip' },
+    destPort: { type: 'int', min: 1, max: 65535 },
+    srcPort: { type: 'int', min: 1, max: 65535 },
+  }),
+  (req, res) => {
   const { type, localIp } = req.body;
   let message = '';
   if (type === 'dns') {

@@ -107,7 +107,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   Kabul: 200 döner, simulate'i bozmaz.
 - `[x]` **D2 — Dashboard: kalan OTP deneme + kilit durumu göster.** verify-otp yanıtındaki
   `remaining` bilgisini captive.html'de göster. Kabul: 3 yanlış girince "2 hak kaldı" görünür.
-- `[ ]` **D3 — Girdi doğrulama sertleştirme.** Tüm uçlarda gövde şeması kontrolü (mac formatı,
+- `[x]` **D3 — Girdi doğrulama sertleştirme.** Tüm uçlarda gövde şeması kontrolü (mac formatı,
   beklenm//eyen alanlar). Kabul: bozuk gövde 400 döner, sunucu çökmez; attack/simulate yeşil.
 - `[ ]` **D4 — Tutarlı hata yanıtı + merkezi hata middleware'i.** Kabul: fırlatılan hatalar
   500 JSON'a dönüşür, stack sızmaz; regresyon yeşil.
