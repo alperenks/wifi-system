@@ -53,6 +53,9 @@ Authorization, Accounting). Sen kendi RADIUS sunucunu yazdın.
 6. Oturum açılır (accounting)    → radius-server.js (UDP 1813)
 7. Trafik loglanır               → syslog-server.js (UDP 514)
 8. Gece log imzalanır            → kamusm-signer.js (cron 23:59)
+
+   (kota açıksa) veri eşiği aşılır → RADIUS Disconnect (UDP 3799) → oturum kapanır
+   (süre dolarsa) Session-Timeout  → oturum otomatik kapatılır
 ```
 
 ---
@@ -61,20 +64,28 @@ Authorization, Accounting). Sen kendi RADIUS sunucunu yazdın.
 
 ```
 backend/
-├── server.js          BEYİN — tüm HTTP uçları, akış yönetimi
-├── config.js          Ayarlar tek yerde (.env'den okur) + başlatma koruması
-├── db.js              JSON dosyasına yazan basit "veritabanı"
-├── auth.js            Yönetici girişi (scrypt parola, HMAC çerez, middleware)
-├── radius-server.js   RADIUS sunucusu (kim girebilir kararı, UDP 1812/1813)
-├── radius-client.js   RADIUS istemcisi (simülasyonda NAS'ı taklit eder)
-├── syslog-server.js   Ağ geçidi loglarını 5651 formatına çevirir (UDP 514)
-├── kamusm-signer.js   Günlük log imzalama + hash zinciri (cron)
-├── netgsm.js          Gerçek SMS gönderimi (HTTPS)
-├── simulate.js        Donanımsız uçtan uca demo sürücüsü
-├── attack.js          Güvenlik saldırı testi
-├── verify-chain.js    İmza zinciri doğrulayıcı
-└── test/                    Birim + uç nokta testleri (npm test)
+├── server.js           BEYİN — tüm HTTP uçları, akış yönetimi
+├── config.js           Ayarlar tek yerde (.env'den okur) + başlatma koruması
+├── db.js               JSON dosyasına yazan basit "veritabanı" (atomik yazma)
+├── auth.js             Yönetici girişi (scrypt parola, HMAC çerez, middleware)
+├── validate.js         İstek gövdesi şema doğrulaması (her POST ucu için)
+├── errors.js           Merkezi hata katmanı — tek biçimli JSON, stack sızmaz
+├── radius-server.js    RADIUS sunucusu + veri kotası/CoA (UDP 1812/1813 → 3799)
+├── radius-client.js    RADIUS istemcisi (simülasyonda NAS'ı taklit eder, CoA dinler)
+├── syslog-server.js    Ağ geçidi loglarını 5651 formatına çevirir (UDP 514)
+├── kamusm-signer.js    Günlük log imzalama + hash zinciri (cron)
+├── netgsm.js           Gerçek SMS gönderimi (HTTPS)
+├── simulate.js         Donanımsız uçtan uca demo sürücüsü
+├── attack.js           Güvenlik saldırı testi
+├── verify-chain.js     İmza zinciri doğrulayıcı (verifyChain() olarak da çağrılabilir)
+├── scripts/gen-cert.js Kendinden imzalı TLS sertifikası üretir (npm run gen-cert)
+└── test/               Birim + uç nokta testleri — `npm test` hepsini koşar
 ```
+
+**Sonradan eklenen iki ince katman:** `validate.js` her POST ucunda beklenen alanları
+şema olarak tanımlar (bozuk MAC/OTP/beklenmeyen alan → 400, iş mantığına hiç girmez);
+`errors.js` ise fırlatılan her hatayı tek biçimli JSON'a çevirir ve yığın izini yalnızca
+sunucu konsoluna yazar. İkisi de "girdiye güvenme, hatayı sızdırma" kuralının kod hâli.
 
 Her modül tek iş yapar (separation of concerns): RADIUS'u değiştirmek portalı bozmaz.
 
@@ -305,8 +316,19 @@ Harici bir veritabanı (PostgreSQL vb.) yok; veri bir JSON dosyasında (`db.json
 ve `Database` sınıfı onu belleğe okur, değişince geri yazar:
 
 ```js
-save() { fs.writeFileSync(DB_PATH, JSON.stringify(this.data, null, 2), 'utf8'); }
+// Önce geçici dosyaya yaz, sonra yerine taşı: yazma yarıda kesilse bile
+// db.json ya eski ya yeni hâliyle bulunur, ASLA yarım kalmaz.
+flush() {
+  fs.writeFileSync(DB_TMP_PATH, JSON.stringify(this.data, null, 2), 'utf8');
+  fs.renameSync(DB_TMP_PATH, DB_PATH);
+}
 ```
+
+`save()` doğrudan yazmaz: kısa bir pencerede (varsayılan 200 ms) biriken değişiklikleri
+tek yazmaya toplar, kapanışta (exit/SIGINT/SIGTERM) bekleyeni boşaltır. Ölçüm: 20
+misafirlik bir iş yükünde 120 mantıksal yazma → **1 diske yazma**. Dosya okunamıyorsa
+üzerine YAZILMAZ; `db.json.bozuk-<zaman>` olarak kenara alınır — bozuk bir dosyanın
+üstüne boş veritabanı yazmak, o ana kadarki oturum kayıtlarını (delili) yok ederdi.
 
 Beş koleksiyon: `guestFlows` (OTP akışları), `radcheck`/`radreply` (RADIUS profilleri),
 `radacct` (oturum kayıtları), `leases` (MAC↔IP eşlemesi = DHCP taklidi).
@@ -321,9 +343,21 @@ sabit IP verir, aynı MAC tekrar gelince aynı IP döner. 5651 için MAC↔IP↔
 halkası budur: log'da IP görürsün, IP→MAC→telefon diye kime ait olduğunu çözersin
 (`getPhoneByIp`).
 
+**Havuz dolarsa ne olur?** Bir dönem burada gerçek bir hata vardı: havuz tükenince her
+yeni cihaza havuzun ilk adresi (`.100`) veriliyordu; onlarca cihaz aynı IP'yi paylaşınca
+"bu IP o an kimdi?" sorusu — yani logun tek işi — belirsizleşiyordu. Artık aktif oturumu
+olmayan bir kira geri alınır (gerçek DHCP'nin yaptığı), gerçekten yer yoksa yüksek sesle
+loglanır. Aynı IP'de birden fazla aktif oturum varsa `getPhoneByIp` **en son** oturumu
+esas alır.
+
 **Saklama temizliği (F-07):** `purgeExpired()` süresi geçmiş doğrulanmamış akışları ve
 saklama süresini (5651: 730 gün) aşan oturumları siler. Yasa hem tutmayı hem süre dolunca
 silmeyi ister.
+
+**Oturum ömrü:** `expireStaleSessions()` `Session-Timeout` süresi dolmuş oturumları
+kapatır (bitiş zamanı olarak "fark edilen an" değil, sürenin dolduğu an yazılır). Sahada
+bunu NAS yapar; simülasyonda kimse yapmayınca panelde hiç bitmeyen "aktif" misafirler
+birikiyordu.
 
 ---
 
@@ -482,12 +516,20 @@ ve bozuk imza 401, replay (aynı nonce) ikinci gönderimde 401. Yani imza + repl
 
 ## 12. Kanıt araçları — "yaptım" değil "test ettim"
 
+- **`npm test`** — ek bağımlılık olmadan (Node'un kendi `node --test` koşucusu) 150'den
+  fazla test: `db.js` (OTP hash'i, kilit, saklama, kira havuzu), `auth.js` (scrypt, HMAC
+  jeton), `kamusm-signer.js` + `verify-chain.js` (zincirin bozulma senaryoları),
+  `validate.js`, `errors.js`, `netgsm.js` (ağa hiç çıkmadan), `syslog-server.js`
+  (5651 satır biçimi birebir) ve gerçek bir Express sunucusuna atılan HTTP uç nokta
+  testleri. **Testler gerçek `db.json` ve `logs/` içeriğine asla dokunmaz** — `fs`
+  katmanı kum havuzuna yönlendirilir (`test/_sandbox.js`).
 - **attack.js** — her açığı saldırgan gibi dener; düzeltmeden önce "GEÇTİ (açık var)",
   sonra "ENGELLENDİ" der. Çıktı: `docs/attack-before.txt` vs `docs/attack-after.txt`.
+  Kota açıkken A8 senaryosu, kotayı aşan misafirin gerçekten düşürüldüğünü de sınar.
 - **verify-chain.js** — imza zincirini doğrular; bir günü silersen "zincir kopuk", içeriği
   değiştirirsen "içerik değiştirilmiş" der.
 - **test/esp32-auth-sim.test.js** — ESP32 doğrulama mantığını JS'te yansıtıp sınar (imza/replay/
-  stale). Donanımsız protokol kanıtı.
+  stale). Donanımsız protokol kanıtı; `npm run test:esp32` ile tek başına da koşar.
 
 Bir portföyde asıl fark yaratan budur: "sistemi yazdım" değil, "kırmayı denedim, şu açıkları
 buldum, kapattım, kapandığını test ettim".
@@ -505,7 +547,9 @@ tek makinede oynuyor. Gerçek sahada roller ayrı donanıma dağılır:
 | Ağ geçidi + NAS | Node (`radius-client` NAS'ı taklit eder) | **MikroTik / pfSense** — trafiği yönlendirir, RADIUS'a sorar, hız/kota uygular, syslog üretir |
 | RADIUS sunucusu | `radius-server.js` | FreeRADIUS (pfSense üstünde) + MySQL |
 | Veri | `db.json` | MySQL (`pfsense-files/radius.sql` şeması) |
-| Hız/kota uygulama | profil üretilir ama pakete kodlanmaz | NAS gerçekten uygular (Mikrotik-Rate-Limit) |
+| Hız limiti | profil üretilir ama pakete kodlanmaz | NAS gerçekten uygular (Mikrotik-Rate-Limit) |
+| Veri kotası | RADIUS sunucusu eşiği aşanı tespit eder ve **gerçek RFC 5176 Disconnect** gönderir; NAS'ı yine Node oynar | Aynı paket gerçek NAS'ın 3799 portuna gider, kullanıcıyı o düşürür |
+| Portal TLS | varsayılan kapalı; `npm run gen-cert` ile açılabilir | zorunlu (gerçek CA sertifikası) |
 | İmza | mock HMAC | KamuSM TSA (`.tsq`/`.tsr`) |
 
 **Neden MikroTik/pfSense şart:** ESP32 sadece köprüdür — trafiği fiilen kesip
@@ -535,6 +579,10 @@ KamuSM TSA'ya taşınır — arayüz aynı kalır çünkü standart RADIUS/syslo
 - **"Donanımda çalıştı mı?"** → Evet. ESP32 firmware'ini gerçek karta yükledim; HMAC
   imzalı yetkilendirme ve replay koruması gerçek donanımda doğrulandı (imzalı→200,
   imzasız/bozuk→401, replay→401). Portal/RADIUS/loglama katmanı ise Node'da uçtan uca çalışıyor.
+- **"Nasıl test ettin?"** → Üç katman: `npm test` ile 150+ birim ve uç nokta testi
+  (kum havuzunda, gerçek veriye dokunmadan), `npm run simulate` ile uçtan uca demo,
+  `npm run attack` ile saldırı regresyonu. 5651 log satırının biçimi de testle
+  kilitli — kazara değişirse test kırılır.
 - **"Prod'a hazır mı?"** → Hayır, simülasyon aşamasında ve dürüstçe öyle etiketledim.
   Saha için ağ geçidi MikroTik/pfSense'e, imzalama gerçek KamuSM TSA'ya taşınmalı, portal
   TLS zorunlu olmalı. Mimari bunları standart protokoller sayesinde destekliyor.

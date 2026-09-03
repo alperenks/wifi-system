@@ -215,7 +215,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   tahsisleri düzeltti ama mevcut kayıtlar duruyor; G2 temizleyicisi 2 saat içinde
   bunları kapatacak. Kontrol: `/api/dashboard/sessions` içinde aynı IP'de birden fazla
   aktif oturum kalmamalı. (Bilgi amaçlı; kendiliğinden çözülür.)
-- `[ ]` **I4 — `docs/PROJE-ANLATIMI.md` güncel değil.** Dosya ağacı ve modül listesi
+- `[x]` **I4 — `docs/PROJE-ANLATIMI.md` güncel değil.** Dosya ağacı ve modül listesi
   son dört turda eklenen `validate.js`, `errors.js`, `scripts/gen-cert.js` ve `test/`
   dizinini bilmiyor. Kabul: belge repodaki gerçek yapıyla örtüşüyor.
 
