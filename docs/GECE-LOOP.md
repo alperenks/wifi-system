@@ -220,6 +220,58 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   son dört turda eklenen `validate.js`, `errors.js`, `scripts/gen-cert.js` ve `test/`
   dizinini bilmiyor. Kabul: belge repodaki gerçek yapıyla örtüşüyor.
 
+### J. Bağımsız inceleme bulguları (security-auditor + code-reviewer, 2026-09-03)
+
+> Üçü DÜZELTİLDİ (aşağıda `[x]`), kalanlar öncelik sırasıyla duruyor.
+> Her madde hangi ajanın bulduğunu belirtir.
+
+- `[x]` **J1 (KRİTİK, iki ajan da buldu) — 5651 satırında MAC ile telefon farklı
+  kişilere ait olabiliyordu.** I1 düzeltmesi yarım uygulanmıştı. Kimlik çözümleme
+  tek yere alındı (`activeSessionByIp`/`verifiedFlowByMac`/`macByIp`). Testle sabitlendi.
+- `[x]` **J2 (KRİTİK, güvenlik) — Telefon alanı ham saklanıyordu:** rakamsız kuyruk
+  taşıyan bir değer doğrulamadan geçip 5651 loguna sahte satır enjekte ediyor ve
+  panelde saklanan XSS'e dönüşüyordu. Kanonikleştirme + log satırı kaçışı + panelde
+  HTML kaçışı ile üç katmanda kapatıldı.
+- `[x]` **J3 (sahaya çıkışı engelliyordu) — Telefon ve canlı OTP konsola düz metin
+  yazılıyordu** (SIM_MODE'dan bağımsız). Konsolda maskelendi; log DOSYASI tam numarayı
+  korumaya devam ediyor (yasal gereklilik).
+- `[ ]` **J4 (güvenlik, orta) — CoA hedefi muhasebe paketinin kaynak adresinden
+  alınıyor.** `COA_HOST` boş geliyor. RADIUS sırrını bilen biri kaynak adresi taklit
+  ederek portalın istediği hedefe Disconnect paketi üretmesini sağlayabilir; SIM'de
+  varsayılan sır depoda açık (`sim-radius-secret`). Öneri: `COA_HOST`'u zorunlu kıl
+  veya NAS adres listesi tut, listede olmayan kaynaktan gelen muhasebe paketini yok say.
+- `[ ]` **J5 (güvenlik, orta) — Kota kontrolü yalnız `Acct-Session-Id`'ye bakıyor.**
+  Paketteki `User-Name` oturumla karşılaştırılmıyor; ayrıca bayt sayaçları geldiği gibi
+  kaydediliyor (5651 kaydındaki hacim saldırganca belirlenebilir). Öneri: `username`
+  eşleşmesi şart, azalan sayaçları yok say.
+- `[ ]` **J6 (güvenlik, orta) — `allocateIp` OTP doğrulanmadan çağrılıyor.** Kimlik
+  doğrulamasız kira tüketimi mümkün; havuz bitince paylaşılan IP durumuna düşülüyor.
+  Öneri: kirayı doğrulamadan SONRA ver + IP başına (telefondan bağımsız) OTP limiti ekle.
+- `[ ]` **J7 (test altyapısı, iki ajan da buldu) — Kum havuzu eksik.**
+  `statSync/openSync/readSync/closeSync/appendFile/rmSync` yakalanmıyor. Bugün zararsız
+  ama bir test log dosyası yazdığı anda GERÇEK `logs/5651_captive` okunur/yazılır.
+  Öneri: bu çağrıları da `remap()`'ten geçir, hatta `backend/` altına düşen
+  yakalanmamış çağrıda testi patlat.
+- `[ ]` **J8 (test kalitesi) — İki test iddia ettiğini sınamıyor.**
+  (a) "yarim kalmis yazma" testi arada hiç `db.js` kodu çalıştırmıyor — `flush()` eski
+  hâline dönse de geçer. (b) `logs` uç noktası testinde kum havuzunda log dosyası yok,
+  bu yüzden `readLogTail` hiç çalışmıyor: G3/G4'ün asıl mantığı (2 MB kuyruk okuma,
+  yarım satır kırpma, `matches.shift()` penceresi) test edilmemiş durumda.
+- `[ ]` **J9 (dayanıklılık) — 200 ms yazma biriktirme delili oynak pencereye koyuyor.**
+  Elektrik kesilirse `startSession`/`stopSession` diske yazılmamış olabilir. Öneri:
+  yalnızca bu iki çağrıda `flush()` (biriktirmeyi atla); OTP akışının gevezeliği
+  biriktirmede kalsın.
+- `[ ]` **J10 (küçük, birikmiş)** — NAS tarafındaki `activeSessions` haritası
+  `expireStaleSessions` ile temizlenmiyor; panelde "Tümünü Göster" seçildikten sonra
+  `logTail = 0` yapışıp kalıyor; CoA dinleyicisi saha modunda da açılıyor (SIM'e özel
+  olmalı); `netgsm.test.js`'teki `sahaModunda()` senkron olduğu için `finally` promise
+  çözülmeden config'i geri alıyor; misafire dönen doğrulama hatası artık teknik
+  ("phone alanı ...") — kullanıcı dostu mesaja dönmeli.
+- `[ ]` **J11 (saha risk kaydı) — `radius@1.1.4` bakımsız** (son yayın ~2016,
+  `new Buffer()` kullanıyor) ve doğrudan saldırı yüzeyindeki UDP 1812/1813/3799'u
+  ayrıştırıyor. Bilinen CVE yok ama saha risk kaydına yazılmalı. Ayrıca `npm audit`
+  ağ olmadan çalıştırıldı — sahaya çıkmadan önce çevrimiçi tekrarlanmalı.
+
 ---
 
 ## İLERLEME GÜNLÜĞÜ
@@ -428,12 +480,17 @@ npm run verify-chain   ZINCIR GECERLI — 2 gun (2026-09-01, 2026-09-03)
 - `db.json` geçerli JSON; aynı IP'de birden fazla aktif oturum **kalmadı** (I3 kapandı);
   artık geçici (`.tmp`) veya karantina (`.bozuk-*`) dosyası yok.
 
-### Yapılamayan: bağımsız inceleme
+### Bağımsız inceleme — SONRADAN ÇALIŞTIRILDI
 
-Son turda CLAUDE.md gereği **security-auditor** ve **code-reviewer** ajanları
-başlatıldı; **ikisi de oturum kullanım limitine çarpıp hiçbir bulgu üretemeden düştü.**
-Yani gecenin kodu bağımsız bir güvenlik denetiminden GEÇMEDİ. Sahaya çıkmadan önce
-bu denetim tekrar çalıştırılmalı (`/quality-gate` veya doğrudan security-auditor).
+İlk denemede iki ajan da oturum limitine çarpıp düşmüştü; limit sıfırlanınca
+**security-auditor** ve **code-reviewer** yeniden çalıştırıldı ve ikisi de rapor üretti.
+Bulgular **J bölümünde**. Özet: iki KRİTİK bulgu çıktı, ikisi de aynı gün düzeltildi
+(J1 delil tutarsızlığı — gecenin kendi I1 düzeltmesinin yarım kalmasından; J2 telefon
+alanı üzerinden log enjeksiyonu + panelde XSS), ayrıca sahaya çıkışı engelleyen J3
+(konsola düşen telefon/OTP) kapatıldı. J4-J11 açık ve öncelik sırasıyla listelendi.
+
+**Not:** J4-J6 sahaya çıkmadan önce kapatılmalı; J11 gereği `npm audit` çevrimiçi
+tekrar çalıştırılmalı.
 
 ### Sabah ne yapmalı?
 
@@ -441,4 +498,21 @@ bu denetim tekrar çalıştırılmalı (`/quality-gate` veya doğrudan security-
 2. Beğendiklerini `main`'e merge et (loop bilerek merge etmedi).
 3. **H1 kararını ver** — telefon numaralarının saklama süresi.
 4. Sahaya çıkmadan önce bağımsız güvenlik denetimini çalıştır (yukarıdaki not).
+
+### 2026-09-03 — inceleme sonrası düzeltme turu (+3 commit)
+
+Alperen döndüğünde iki inceleme ajanı yeniden çalıştırıldı; çıkan iki kritik ve bir
+sahaya-çıkış-engeli bulgu aynı oturumda düzeltildi:
+
+| Bulgu | Nasıl doğrulandı |
+|---|---|
+| J1 — tek 5651 satırında A'nın MAC'i + B'nin telefonu | Kum havuzunda önce **yeniden üretildi**, düzeltmeden sonra ikisi de aynı misafiri gösterdi; 5 yeni test |
+| J2 — telefon alanından log enjeksiyonu + panelde XSS | Enjeksiyon payload'ı 5651 satırını **2 satıra böldü** (kanıtlandı); düzeltmeden sonra canlı sunucu 400 dönüyor, panelde payload metin olarak görünüyor, `<img>` oluşmuyor |
+| J3 — konsola düşen telefon/OTP | Konsolda `+90 5** *** 6543`, log dosyasında tam numara (yasal gereklilik) |
+
+Yan düzeltmeler: `db.js` artık SIGINT/SIGTERM'i gasp etmiyor (soketlerin sahibi
+`server.js` düzgün kapanışı yönetiyor); `int` doğrulayıcısı boolean kabul etmiyor.
+
+**Kapanış testi:** `npm test` 161/161 · simulate 4/4 · attack 0 açık · verify-chain
+2 gün geçerli · bugünkü 1320 log satırının tamamı 9 alanlı.
 
