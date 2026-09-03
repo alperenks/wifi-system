@@ -11,6 +11,7 @@ const netgsm = require('./netgsm');
 const radiusClient = require('./radius-client');
 const auth = require('./auth');
 const { validateBody } = require('./validate');
+const { apiNotFound, makeErrorHandler, wrapAsync } = require('./errors');
 const { startRadiusServer } = require('./radius-server');
 const { startSyslogServer } = require('./syslog-server');
 const { startCronSigner, signDailyLog, purgeOldLogs } = require('./kamusm-signer');
@@ -233,7 +234,7 @@ app.post('/api/send-otp',
     mac: { type: 'mac', required: true },
     phone: { type: 'phone', required: true },
   }),
-  validatePhone, phoneDailyLimiter, smsHourlyLimiter, smsLimiter, async (req, res) => {
+  validatePhone, phoneDailyLimiter, smsHourlyLimiter, smsLimiter, wrapAsync(async (req, res) => {
   const { mac, phone } = req.body;
 
   if (!mac || !phone) {
@@ -274,7 +275,7 @@ app.post('/api/send-otp',
   }
 
   return res.json(payload);
-});
+}));
 
 // Verify OTP -> authenticate device through the REAL RADIUS path
 app.post('/api/verify-otp', verifyLimiter,
@@ -282,7 +283,7 @@ app.post('/api/verify-otp', verifyLimiter,
     mac: { type: 'mac', required: true },
     otp: { type: 'otp', required: true },
   }),
-  async (req, res) => {
+  wrapAsync(async (req, res) => {
   const { mac, otp } = req.body;
 
   if (!mac || !otp) {
@@ -339,7 +340,7 @@ app.post('/api/verify-otp', verifyLimiter,
     leaseIp,
     radius: radiusResult,
   });
-});
+}));
 
 // F-03: ESP32 köprüsüne imzalı yetkilendirme isteği.
 // Gövde {mac, ts, nonce}, başlık X-Signature = HMAC-SHA256(gövdenin birebir metni, sharedSecret).
@@ -370,7 +371,7 @@ app.post('/api/sim/full-guest', auth.requireAuth,
     phone: { type: 'phone' },
     mac: { type: 'mac' },
   }),
-  async (req, res) => {
+  wrapAsync(async (req, res) => {
   if (!config.SIM_MODE) {
     return res.status(400).json({ message: 'Bu uç yalnızca SIM_MODE aktifken kullanılabilir.' });
   }
@@ -393,7 +394,7 @@ app.post('/api/sim/full-guest', auth.requireAuth,
   } catch (err) {
     return res.status(500).json({ message: 'Simülasyon oturumu açılamadı.', error: err.message });
   }
-});
+}));
 
 // Generate realistic browsing traffic (DNS + NAT syslog) for an active IP
 app.post('/api/sim/browse', auth.requireAuth,
@@ -401,7 +402,7 @@ app.post('/api/sim/browse', auth.requireAuth,
     ip: { type: 'ip', required: true },
     count: { type: 'int', min: 1, max: 25 },
   }),
-  async (req, res) => {
+  wrapAsync(async (req, res) => {
   const { ip } = req.body;
   const count = Math.min(parseInt(req.body.count || '5', 10), 25);
   if (!ip) return res.status(400).json({ message: 'ip alanı gereklidir.' });
@@ -426,7 +427,7 @@ app.post('/api/sim/browse', auth.requireAuth,
   }
 
   res.json({ success: true, ip, visited });
-});
+}));
 
 // Disconnect a device (RADIUS Accounting-Stop)
 app.post('/api/sim/disconnect', auth.requireAuth,
@@ -434,7 +435,7 @@ app.post('/api/sim/disconnect', auth.requireAuth,
     ip: { type: 'ip' },
     mac: { type: 'mac' },
   }),
-  async (req, res) => {
+  wrapAsync(async (req, res) => {
   const { ip, mac } = req.body;
   const session = db.data.radacct.find(s => s.active && (s.ip === ip || s.username === (mac || '').toLowerCase().replace(/[^a-f0-9]/g, '')));
   if (!session) return res.status(404).json({ message: 'Aktif oturum bulunamadı.' });
@@ -445,7 +446,7 @@ app.post('/api/sim/disconnect', auth.requireAuth,
   } catch (err) {
     res.status(500).json({ message: 'Oturum kapatılamadı.', error: err.message });
   }
-});
+}));
 
 function randomMac() {
   const h = () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
@@ -565,6 +566,14 @@ app.post('/api/dashboard/mock-syslog',
     else res.json({ success: true });
   });
 });
+
+// ==========================================================================
+//  Hata katmani (D4) — TUM route'lardan SONRA kaydedilir.
+//  Eslesmeyen /api/* -> 404 JSON; firlatilan her hata -> tek bicimli JSON.
+//  Yigin izi istemciye ASLA gonderilmez, sunucu konsoluna yazilir.
+// ==========================================================================
+app.use(apiNotFound);
+app.use(makeErrorHandler());
 
 // ==========================================================================
 //  Boot
