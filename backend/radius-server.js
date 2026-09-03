@@ -73,13 +73,28 @@ function sendDisconnect(username, sessionId, nasAddress) {
  * F-10: Interim-Update sonrası kota kontrolü. Eşik aşıldıysa oturumu kapatır
  * ve NAS'a Disconnect-Request gönderir.
  */
+const QUOTA_WARN_RATIO = 0.8;   // H5: bu orana gelince bir kez uyarılır
+
 async function enforceQuota(username, sessionId, inputOctets, outputOctets, nasAddress) {
   if (QUOTA_BYTES <= 0) return false;                       // kota kapalı
   const total = inputOctets + outputOctets;
-  if (total < QUOTA_BYTES) return false;
 
   const session = db.data.radacct.find(s => s.sessionId === sessionId && s.active);
   if (!session) return false;                               // zaten kapanmış
+
+  // H5: Eşiğe yaklaşanı önce UYAR. Misafirin birden kopması yerine işletmeci
+  // (ve panel) durumu önceden görsün. Oturum başına yalnızca bir kez loglanır.
+  if (total >= QUOTA_BYTES * QUOTA_WARN_RATIO && total < QUOTA_BYTES) {
+    if (!session.quotaWarned) {
+      session.quotaWarned = true;
+      db.save();
+      const yuzde = Math.round((total / QUOTA_BYTES) * 100);
+      console.warn(`[QUOTA] ${username} kotasinin %${yuzde}'ini kullandi (${(total / 1024 / 1024).toFixed(1)} MB / ${config.quota.megabytes} MB).`);
+    }
+    return false;
+  }
+
+  if (total < QUOTA_BYTES) return false;
 
   const mb = (total / 1024 / 1024).toFixed(1);
   console.warn(`[QUOTA] ${username} kotayi asti (${mb} MB / ${config.quota.megabytes} MB). Oturum kapatiliyor: ${sessionId}`);

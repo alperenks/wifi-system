@@ -530,9 +530,12 @@
             const oran = Math.min(100, Math.round((kullanilanMb / quotaMb) * 100));
             const kalan = Math.max(0, quotaMb - kullanilanMb).toFixed(1);
             const sinif = oran >= 100 ? 'full' : (oran >= 80 ? 'warn' : '');
+            // H5: %80'i geçen misafir için görünür uyarı — birden kopmasın.
+            const uyari = (oran >= 80 && oran < 100)
+              ? ' <strong style="color:#ffc078;">⚠ kota bitmek üzere</strong>' : '';
             quotaHtml = `
               <div class="quota-bar ${sinif}" title="${mb} MB / ${quotaMb} MB"><span style="width:${oran}%"></span></div>
-              <span class="phone">Kota: %${oran} kullanıldı — ${kalan} MB kaldı</span>`;
+              <span class="phone">Kota: %${oran} kullanıldı — ${kalan} MB kaldı${uyari}</span>`;
           }
 
           const kotaDoldu = sess.terminateCause === 'quota';

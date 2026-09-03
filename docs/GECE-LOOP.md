@@ -193,7 +193,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   kendi `main()`'i ve `process.exit`'iyle ayrı koşuyor; `node:test`'e çevrilirse tek
   komutla tüm testler koşar. Kabul: `npm test` içinde görünüyor, `npm run test:esp32`
   hâlâ çalışıyor.
-- `[ ]` **H5 — Kota eşiğine yaklaşan misafiri uyar.** Kota %80'i geçince captive
+- `[x]` **H5 — Kota eşiğine yaklaşan misafiri uyar.** Kota %80'i geçince captive
   portalda/panelde uyarı; şu an misafir birden kopuyor. Kabul: eşik aşımında panelde
   sarı uyarı, kotayı aşınca kırmızı (çubuk zaten var).
 
