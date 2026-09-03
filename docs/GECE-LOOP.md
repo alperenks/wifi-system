@@ -239,4 +239,4 @@ numarası çözülmüş 5651 logları · `verify-chain` geçerli.
    isterseniz `.env`'de `DB_SAVE_DEBOUNCE_MS=0` yapın.
 3. **Panelde "aktif" oturumlar birikiyor** (G2): `Session-Timeout` dolsa da simülasyonda
    kimse oturumu kapatmıyor. Sahada bunu NAS yapar; demoda yanıltıcı görünüyor.
-4. Dal `gece-gelistirme`, toplam 24 commit, `main`'e dokunulmadı, push yapılmadı.
+4. Dal `gece-gelistirme`, toplam 23 commit, `main`'e dokunulmadı, push yapılmadı.
