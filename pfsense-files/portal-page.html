@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!--
+  pfSense Captive Portal "Portal page contents" olarak yüklenecek sayfa.
+  (ÖNERİLEN yol — Node backend entegrasyonu. Eski MySQL'li yol için
+   index.html + captiveportal-sms.php dosyalarına bakın.)
+
+  Tek işi: istemciyi captiveportal-redirect.php'ye göndermek.
+  $PORTAL_ZONE$ ve $PORTAL_REDIRURL$ pfSense tarafından otomatik doldurulur.
+  captiveportal-redirect.php dosyasının File Manager ile yüklenmiş olması gerekir.
+-->
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0;url=captiveportal-redirect.php?zone=$PORTAL_ZONE$&amp;redirurl=$PORTAL_REDIRURL$">
+  <title>Misafir Wi-Fi — Yönlendiriliyor</title>
+  <style>
+    body { background:#0c0b09; color:#eee; font-family:sans-serif;
+           display:flex; justify-content:center; align-items:center;
+           min-height:100vh; margin:0; }
+    .box { text-align:center; }
+    a { color:#cda45e; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <p>Misafir giriş portalına yönlendiriliyorsunuz…</p>
+    <a href="captiveportal-redirect.php?zone=$PORTAL_ZONE$&amp;redirurl=$PORTAL_REDIRURL$">
+      Otomatik açılmazsa buraya dokunun
+    </a>
+  </div>
+</body>
+</html>

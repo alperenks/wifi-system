@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"/c/Users/alper/OneDrive/Masaüstü/is-arama\")",
+      "Read(//c/Users/alper/Downloads/**)",
+      "Read(//c/Users/alper/OneDrive/Masaüstü/**)",
+      "Bash(pandoc -t markdown \"/c/Users/alper/Downloads/Alperen_Keles_CV_Siber_Guvenlik_Ag_TR.docx\")",
+      "Read(//c/Users/alper/AppData/Local/Temp/claude/C--Users-alper-OneDrive-Masa-st--wifi-system/a8388de0-6aad-4bca-bd7c-240fbe681a47/scratchpad/cv_extract/**)",
+      "Bash(node -e ' *)",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "WebSearch",
+      "mcp__claude-in-chrome__navigate",
+      "mcp__claude-in-chrome__get_page_text"
+    ]
+  }
+}

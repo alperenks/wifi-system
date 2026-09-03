@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yönetici Girişi — 5651 Kontrol Paneli</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #cda45e;
+      --primary-hover: #dcb87a;
+      --text: #eeeeee;
+      --text-muted: #a49f96;
+      --error: #e03131;
+      --card: rgba(26, 25, 22, 0.9);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
+    body {
+      background: linear-gradient(135deg, #111 0%, #050505 100%);
+      color: var(--text);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(205, 164, 94, 0.25);
+      border-radius: 16px;
+      padding: 40px 34px;
+      width: 100%; max-width: 380px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    .brand { text-align: center; margin-bottom: 28px; }
+    .brand .lock { font-size: 34px; }
+    h1 { font-size: 22px; font-weight: 800; margin-top: 8px; letter-spacing: -0.02em; }
+    .sub { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+    label { display: block; font-size: 13px; color: var(--text-muted); margin: 16px 0 6px; }
+    input {
+      width: 100%; padding: 12px 14px; font-size: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(205, 164, 94, 0.3);
+      border-radius: 10px; color: var(--text); outline: none;
+    }
+    input:focus { border-color: var(--primary); }
+    button {
+      width: 100%; margin-top: 24px; padding: 13px;
+      background: var(--primary); color: #1a1512; font-weight: 600; font-size: 15px;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--primary-hover); }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .msg { margin-top: 16px; font-size: 13px; min-height: 18px; text-align: center; }
+    .msg.error { color: var(--error); }
+    .foot { margin-top: 22px; font-size: 11px; color: var(--text-muted); text-align: center; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="lock">🔐</div>
+      <h1>Yönetici Girişi</h1>
+      <div class="sub">5651 Kontrol Paneli</div>
+    </div>
+    <form id="loginForm" autocomplete="off">
+      <label for="user">Kullanıcı adı</label>
+      <input id="user" name="user" type="text" autocomplete="username" required>
+      <label for="password">Parola</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit" id="submitBtn">Giriş yap</button>
+      <div class="msg" id="msg"></div>
+    </form>
+    <div class="foot">Bu panel 5651 kayıtlarına ve misafir oturumlarına erişir.<br>Yalnızca yetkili personel.</div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const msg = document.getElementById('msg');
+    const btn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.className = 'msg';
+      msg.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Kontrol ediliyor...';
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user: document.getElementById('user').value,
+            password: document.getElementById('password').value,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          window.location.href = '/dashboard';
+          return;
+        }
+        msg.className = 'msg error';
+        msg.textContent = data.message || 'Giriş başarısız.';
+      } catch (err) {
+        msg.className = 'msg error';
+        msg.textContent = 'Sunucuya ulaşılamadı.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Giriş yap';
+      }
+    });
+  </script>
+</body>
+</html>

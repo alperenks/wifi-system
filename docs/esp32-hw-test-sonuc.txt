@@ -1,0 +1,13 @@
+◇ injected env (21) from .env // tip: ⌘ enable debugging { debug: true }
+
+  ESP32 DONANIM TESTI -> http://192.168.4.1/authorize
+
+  [OK  ] Gecerli imzali istek: HTTP 200 (beklenen 200) {"status":"authorized"}
+  [OK  ] Imzasiz istek       : HTTP 401 (beklenen 401) {"error":"bad_signature"}
+  [OK  ] Bozuk imza          : HTTP 401 (beklenen 401) {"error":"bad_signature"}
+  [OK  ] Replay 1. gonderim  : HTTP 200 (beklenen 200) {"status":"authorized"}
+  [OK  ] Replay 2. gonderim  : HTTP 401 (beklenen 401) {"error":"replay"}
+
+  SONUC: TUM TESTLER GECTI — F-03 gercek donanimda dogrulandi
+
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 94

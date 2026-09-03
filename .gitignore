@@ -1,0 +1,40 @@
+# =============================================================================
+# GİZLİ / KİŞİSEL VERİ — public repoya ASLA girmez
+# =============================================================================
+
+# Ortam değişkenleri (NetGSM bilgileri, RADIUS sırrı, yönetici parolası vb.)
+.env
+backend/.env
+*/.env
+**/.env.local
+
+# Çalışma zamanı veritabanı — gerçek telefon numaraları içerebilir (KVKK)
+backend/db.json
+
+# 5651 log dosyaları — kişisel veri
+backend/logs/
+!backend/logs/.gitkeep
+
+# ESP32 paylaşılan sırrı
+esp32-bridge/secrets.h
+
+# TLS sertifikaları / anahtarlar
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Bağımlılıklar
+node_modules/
+**/node_modules/
+
+# İşletim sistemi / editör
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log.local
+
+# Yedekler
+*-yedek-*/
+*.bak

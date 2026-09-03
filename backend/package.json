@@ -1,0 +1,22 @@
+{
+  "name": "wifi-system-backend",
+  "version": "1.0.0",
+  "description": "5651 Uyumlu SMS Dogrulamali Captive Portal Simülasyon Backend'i",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "simulate": "node simulate.js",
+    "attack": "node attack.js",
+    "verify-chain": "node verify-chain.js",
+    "test:esp32": "node esp32-auth-sim.test.js"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "node-cron": "^3.0.3",
+    "radius": "^1.1.4",
+    "uuid": "^9.0.1"
+  }
+}

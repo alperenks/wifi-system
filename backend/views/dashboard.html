@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5651 Log & Captive Portal Kontrol Paneli</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #cda45e;
+      --primary-hover: #b88f4c;
+      --bg-dark: #09090b;
+      --bg-card: #18181b;
+      --border: #27272a;
+      --text: #fafafa;
+      --text-muted: #a1a1aa;
+      --success: #22c55e;
+      --warning: #eab308;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text);
+      padding: 30px;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    header h1 span {
+      color: var(--primary);
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+
+    .badge {
+      background: rgba(205, 164, 94, 0.15);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .status-dot.loading {
+      background: var(--warning);
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 14px;
+      background: #09090b;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .flex-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    /* Logs Table / Screen */
+    .log-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 30px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      margin-top: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .sessions-list {
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .session-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+
+    .session-item:last-child {
+      border-bottom: none;
+    }
+
+    .session-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .session-info .ip-mac {
+      font-weight: 600;
+    }
+
+    .session-info .phone {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .session-status {
+      font-size: 0.75rem;
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .session-status.inactive {
+      background: rgba(161, 161, 170, 0.15);
+      color: var(--text-muted);
+    }
+
+    .log-box {
+      background: #09090b;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #39b54a;
+      height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    .alert {
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 15px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>5651 Log & Captive Portal <span>Kontrol Paneli</span></h1>
+      <p>Müşteri Sunumu ve Teknik Simülasyon Arayüzü</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="badge">Simülasyon Aktif</div>
+      <button onclick="logout()" style="padding:8px 16px; background:transparent; border:1px solid var(--danger,#ef4444); color:#ff8787; border-radius:8px; cursor:pointer; font-size:0.85rem;">Çıkış</button>
+    </div>
+  </header>
+
+  <div id="toast" class="alert"></div>
+
+  <div class="grid">
+    <!-- Server Status & Controls -->
+    <div class="card">
+      <h2>Sistem Servisleri 
+        <div class="status-indicator"><div class="status-dot"></div>Aktif</div>
+      </h2>
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+          <span>HTTP Captive Portal (Port 3000):</span>
+          <span style="color:var(--success); font-weight:600;">Çalışıyor</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+          <span>RADIUS Auth (Port 1812):</span>
+          <span style="color:var(--success); font-weight:600;">Çalışıyor</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+          <span>RADIUS Acct (Port 1813):</span>
+          <span style="color:var(--success); font-weight:600;">Çalışıyor</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+          <span>Syslog Alıcı (Port 514):</span>
+          <span style="color:var(--success); font-weight:600;">Çalışıyor</span>
+        </div>
+      </div>
+      
+      <div style="border-top: 1px solid var(--border); padding-top: 15px;">
+        <label>TÜBİTAK Kamu SM Log Mühürleme (Simüle)</label>
+        <button class="btn" onclick="triggerSigning()" style="margin-top: 5px;">Bugünün Günlüğünü Zaman Damgalı Mühürle (.ts)</button>
+      </div>
+    </div>
+
+    <!-- Mock Syslog Traffic Generator -->
+    <div class="card">
+      <h2>Yapay Syslog Trafik Üretici (Simülatör)</h2>
+      <p style="color: var(--text-muted); font-size:0.8rem; margin-bottom: 15px;">
+        pfSense sanal makinesinden veya gerçek routerdan log gelmeden önce, sistemin syslog ayrıştırıcısını ve 5651 log üreticisini test etmek için yapay ağ trafiği gönderin.
+      </p>
+
+      <div class="form-group">
+        <label for="mock-ip">İstemci IP Adresi (İç Ağ)</label>
+        <select id="mock-ip">
+          <!-- Will be filled dynamically based on active sessions -->
+          <option value="192.168.20.15">192.168.20.15 (Test Kullanıcısı)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="mock-type">Trafik Tipi</label>
+        <select id="mock-type" onchange="toggleMockType(this.value)">
+          <option value="dns">DNS Sorgusu (Ziyaret Edilen Web Sitesi)</option>
+          <option value="nat">NAT Bağlantısı (Hedef IP / Dış Bağlantı)</option>
+        </select>
+      </div>
+
+      <!-- DNS fields -->
+      <div id="mock-dns-fields" class="form-group">
+        <label for="mock-domain">Hedef Alan Adı (Web Sitesi)</label>
+        <input type="text" id="mock-domain" value="instagram.com">
+      </div>
+
+      <!-- NAT fields -->
+      <div id="mock-nat-fields" class="form-group hidden">
+        <label for="mock-dest-ip">Hedef Sunucu IP Adresi</label>
+        <input type="text" id="mock-dest-ip" value="157.240.231.174">
+        
+        <div style="display:flex; gap: 10px; margin-top: 10px;">
+          <div style="flex:1;">
+            <label for="mock-dest-port">Hedef Port</label>
+            <input type="number" id="mock-dest-port" value="443">
+          </div>
+          <div style="flex:1;">
+            <label for="mock-src-port">Kaynak Port</label>
+            <input type="number" id="mock-src-port" value="53412">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="sendMockSyslog()">Syslog Gönder</button>
+    </div>
+
+    <!-- End-to-End Simulation Controls -->
+    <div class="card">
+      <h2>Uçtan Uca Simülasyon</h2>
+      <p style="color: var(--text-muted); font-size:0.8rem; margin-bottom: 15px;">
+        Donanım olmadan tüm akışı çalıştırır: sanal telefon &rarr; OTP &rarr; doğrulama &rarr;
+        <strong>gerçek RADIUS oturumu</strong> (Access-Request + Accounting-Start). Ardından
+        gezinme trafiği üretip 5651 loglarının dolmasını izleyin.
+      </p>
+      <button class="btn" onclick="createVirtualGuest()">➕ Sanal Misafir Cihazı Bağla</button>
+      <div class="flex-buttons" style="margin-top: 10px;">
+        <button class="btn btn-secondary" onclick="browseAll()" style="flex:1;">🌐 Aktiflere Gezinme Üret</button>
+      </div>
+      <p style="color: var(--text-muted); font-size:0.75rem; margin-top:12px;">
+        Tekil cihaz için oturum kartındaki <strong>Gezin</strong> / <strong>Kes</strong> düğmelerini kullanın.
+      </p>
+    </div>
+
+    <!-- Active RADIUS & Captive Portal Sessions -->
+    <div class="card">
+      <h2>Aktif Oturumlar (RADIUS Sessions)</h2>
+      <div class="sessions-list" id="sessions-list">
+        <p style="color: var(--text-muted); font-size: 0.85rem; padding: 15px; text-align: center;">Aktif kullanıcı oturumu bulunamadı.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Realtime 5651 Logs Output -->
+  <div class="log-container">
+    <h2>Gerçek Zamanlı 5651 Yasallık Logu</h2>
+    <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 10px;">
+      Bu veriler, ağ üzerinde gerçekleşen işlemlerin 5651 sayılı kanun formatında <code>logs/5651_captive/YYYY-MM-DD.log</code> dosyasına saniyelik kaydedilmiş çıktısıdır.
+    </p>
+    <div class="log-box" id="realtime-logs">Yükleniyor...</div>
+
+    <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+      <label>Adli Arama (Telefon No / MAC ile geçmiş kayıt sorgulama)</label>
+      <div style="display:flex; gap:10px;">
+        <input type="text" id="search-input" placeholder="örn: 5551234567 veya 00:aa:bb..." onkeydown="if(event.key==='Enter')searchLogs()">
+        <button class="btn" style="width:auto;" onclick="searchLogs()">Ara</button>
+      </div>
+      <div class="log-box" id="search-results" style="height:120px; margin-top:10px; color:var(--primary);">Telefon numarası veya MAC girin.</div>
+    </div>
+    <div class="flex-buttons" style="margin-top: 10px; justify-content: flex-end;">
+      <button class="btn btn-secondary" onclick="fetchLogs()" style="width: auto;">Yenile</button>
+      <button class="btn btn-secondary" onclick="clearLogsFile()" style="width: auto; border-color: var(--danger); color: var(--danger);">Dosyayı Temizle</button>
+    </div>
+  </div>
+
+  <script>
+    // F-12: oturum düşerse (401) yönetici girişine yönlendir. Tüm fetch'leri sarar.
+    const _origFetch = window.fetch;
+    window.fetch = async function (...args) {
+      const res = await _origFetch.apply(this, args);
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('unauthorized');
+      }
+      return res;
+    };
+
+    async function logout() {
+      try { await _origFetch('/api/auth/logout', { method: 'POST' }); } catch (_) {}
+      window.location.href = '/login';
+    }
+
+    // Toggle fields based on select
+    function toggleMockType(val) {
+      if (val === 'dns') {
+        document.getElementById('mock-dns-fields').classList.remove('hidden');
+        document.getElementById('mock-nat-fields').classList.add('hidden');
+      } else {
+        document.getElementById('mock-dns-fields').classList.add('hidden');
+        document.getElementById('mock-nat-fields').classList.remove('hidden');
+      }
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      toast.style.background = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)';
+      toast.style.borderColor = isError ? 'var(--danger)' : 'var(--success)';
+      toast.style.color = isError ? '#ff8787' : '#8ce99a';
+      toast.style.border = '1px solid';
+      
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+
+    // Load active sessions
+    async function loadSessions() {
+      try {
+        const response = await fetch('/api/dashboard/sessions');
+        const sessions = await response.json();
+        
+        const listEl = document.getElementById('sessions-list');
+        const ipSelect = document.getElementById('mock-ip');
+
+        // Clear select options (keep test user fallback)
+        ipSelect.innerHTML = '<option value="192.168.20.15">192.168.20.15 (Test Cihazı)</option>';
+
+        if (sessions.length === 0) {
+          listEl.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; padding: 15px; text-align: center;">Aktif kullanıcı oturumu bulunamadı.</p>';
+          return;
+        }
+
+        listEl.innerHTML = '';
+        sessions.forEach(sess => {
+          // Add to session list UI
+          const item = document.createElement('div');
+          item.className = 'session-item';
+          const mb = ((sess.inputOctets + sess.outputOctets) / (1024 * 1024)).toFixed(1);
+          const controls = sess.active
+            ? `<div style="display:flex; gap:6px;">
+                 <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem;" onclick="browseFor('${sess.ip}')">Gezin</button>
+                 <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem; border-color:var(--danger); color:var(--danger);" onclick="disconnect('${sess.ip}')">Kes</button>
+               </div>`
+            : `<span class="session-status inactive">Koptu</span>`;
+          item.innerHTML = `
+            <div class="session-info">
+              <span class="ip-mac">${sess.ip} / <span style="color: var(--primary);">${sess.username.toUpperCase()}</span></span>
+              <span class="phone">Tel: +90 ${sess.phone} | ${mb} MB | ${new Date(sess.startTime).toLocaleTimeString()}</span>
+            </div>
+            ${controls}
+          `;
+          listEl.appendChild(item);
+
+          // Add to mock sender dropdown
+          if (sess.active) {
+            const opt = document.createElement('option');
+            opt.value = sess.ip;
+            opt.textContent = `${sess.ip} (${sess.phone})`;
+            ipSelect.appendChild(opt);
+          }
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Send simulated syslog message
+    async function sendMockSyslog() {
+      const type = document.getElementById('mock-type').value;
+      const localIp = document.getElementById('mock-ip').value;
+      
+      let payload = {};
+      if (type === 'dns') {
+        payload = {
+          type: 'dns',
+          localIp: localIp,
+          domain: document.getElementById('mock-domain').value
+        };
+      } else {
+        payload = {
+          type: 'nat',
+          localIp: localIp,
+          destIp: document.getElementById('mock-dest-ip').value,
+          destPort: document.getElementById('mock-dest-port').value,
+          srcPort: document.getElementById('mock-src-port').value
+        };
+      }
+
+      try {
+        const response = await fetch('/api/dashboard/mock-syslog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          showToast('Yapay Syslog paketi UDP 514 üzerinden başarıyla gönderildi.');
+          // Reload logs and sessions immediately
+          setTimeout(() => {
+            fetchLogs();
+            loadSessions();
+          }, 300);
+        } else {
+          showToast('Syslog gönderilemedi.', true);
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Bağlantı hatası.', true);
+      }
+    }
+
+    // Trigger Kamu SM Daily Log Signing
+    async function triggerSigning() {
+      try {
+        const response = await fetch('/api/dashboard/sign-logs', { method: 'POST' });
+        const result = await response.json();
+        
+        if (response.ok) {
+          showToast('5651 Zaman Damgası başarıyla üretildi! Dosya: ' + result.date + '.ts', false);
+          fetchLogs();
+        } else {
+          showToast(result.message || 'Hata: Log dosyası bulunamadığı için mühürlenemedi.', true);
+        }
+      } catch (e) {
+        console.error(e);
+        showToast('Zaman damgası servisine erişilemedi.', true);
+      }
+    }
+
+    // Fetch and display 5651 logs
+    async function fetchLogs() {
+      try {
+        const response = await fetch('/api/dashboard/logs');
+        const data = await response.json();
+        
+        const logBox = document.getElementById('realtime-logs');
+        if (data.logs && data.logs.trim() !== '') {
+          logBox.textContent = data.logs;
+          // Scroll to bottom
+          logBox.scrollTop = logBox.scrollHeight;
+        } else {
+          logBox.textContent = "Henüz log verisi bulunmuyor. Sol taraftan yapay syslog üretebilir veya captive portal girişlerini test edebilirsiniz.";
+        }
+      } catch (err) {
+        console.error(err);
+        document.getElementById('realtime-logs').textContent = "Loglar yüklenirken bir hata oluştu.";
+      }
+    }
+
+    // Clear logs file for test database cleanup
+    async function clearLogsFile() {
+      if(!confirm("Bugüne ait test log dosyasını silmek istediğinizden emin misiniz?")) return;
+      try {
+        const response = await fetch('/api/dashboard/clear-logs', { method: 'POST' });
+        if(response.ok) {
+          showToast('Log dosyası temizlendi.');
+          fetchLogs();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // --- End-to-end simulation controls ---
+    async function createVirtualGuest() {
+      try {
+        const r = await fetch('/api/sim/full-guest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const d = await r.json();
+        if (r.ok) {
+          showToast(`Sanal misafir bağlandı: +90 ${d.phone} (${d.ip})`);
+          loadSessions();
+        } else {
+          showToast(d.message || 'Sanal misafir oluşturulamadı.', true);
+        }
+      } catch (e) { showToast('Bağlantı hatası.', true); }
+    }
+
+    async function browseFor(ip) {
+      try {
+        const r = await fetch('/api/sim/browse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, count: 5 }) });
+        const d = await r.json();
+        if (r.ok) { showToast(`${ip} için ${d.visited.length} site ziyareti loglandı.`); setTimeout(fetchLogs, 300); }
+        else showToast(d.message || 'Gezinme üretilemedi.', true);
+      } catch (e) { showToast('Bağlantı hatası.', true); }
+    }
+
+    async function browseAll() {
+      const r = await fetch('/api/dashboard/sessions');
+      const sessions = await r.json();
+      const actives = sessions.filter(s => s.active);
+      if (actives.length === 0) return showToast('Aktif oturum yok. Önce sanal misafir bağlayın.', true);
+      for (const s of actives) await browseFor(s.ip);
+    }
+
+    async function disconnect(ip) {
+      try {
+        const r = await fetch('/api/sim/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip }) });
+        if (r.ok) { showToast('Oturum kapatıldı (Accounting-Stop).'); loadSessions(); }
+        else showToast('Oturum kapatılamadı.', true);
+      } catch (e) { showToast('Bağlantı hatası.', true); }
+    }
+
+    // Mode badge from server config
+    async function loadConfig() {
+      try {
+        const r = await fetch('/api/config');
+        const c = await r.json();
+        const badge = document.querySelector('.badge');
+        if (c.simMode) { badge.textContent = 'Simülasyon Aktif'; }
+        else { badge.textContent = 'CANLI — NetGSM'; badge.style.borderColor = 'var(--success)'; badge.style.color = 'var(--success)'; }
+      } catch (e) {}
+    }
+
+    // 5651 audit search
+    async function searchLogs() {
+      const q = document.getElementById('search-input').value.trim();
+      const box = document.getElementById('search-results');
+      if (!q) { box.textContent = 'Telefon numarası veya MAC girin.'; return; }
+      const r = await fetch('/api/dashboard/search?q=' + encodeURIComponent(q));
+      const d = await r.json();
+      box.textContent = d.matches.length
+        ? d.matches.map(m => `[${m.file}] ${m.line}`).join('\n')
+        : 'Kayıt bulunamadı.';
+    }
+
+    // Initial load and polling
+    loadConfig();
+    loadSessions();
+    fetchLogs();
+    
+    // Refresh sessions and logs every 5 seconds
+    setInterval(() => {
+      loadSessions();
+      fetchLogs();
+    }, 5000);
+  </script>
+</body>
+</html>

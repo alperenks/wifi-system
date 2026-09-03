@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karaköy Gurme - Misafir İnternet Hizmeti</title>
+  <!-- Google Fonts: Outfit -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #cda45e;
+      --primary-hover: #dcb87a;
+      --bg-dark: #0c0b09;
+      --bg-card: rgba(26, 25, 22, 0.85);
+      --text: #eeeeee;
+      --text-muted: #a49f96;
+      --accent: #2b8a3e;
+      --error: #e03131;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #111 0%, #050505 100%);
+      background-size: cover;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient background lights */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(205, 164, 94, 0.15) 0%, transparent 70%);
+      top: 10%;
+      left: 10%;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(205, 164, 94, 0.1) 0%, transparent 70%);
+      bottom: 10%;
+      right: 10%;
+      z-index: 0;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 440px;
+      background: var(--bg-card);
+      border: 1px solid rgba(205, 164, 94, 0.2);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 24px;
+      padding: 40px 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      z-index: 10;
+      position: relative;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo-area {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .logo-icon {
+      font-size: 3rem;
+      color: var(--primary);
+      margin-bottom: 10px;
+      display: inline-block;
+      animation: pulse 2.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+
+    .logo-area h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #fff;
+      margin-bottom: 5px;
+    }
+
+    .logo-area h1 span {
+      color: var(--primary);
+    }
+
+    .logo-area p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 30px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      background: var(--primary);
+      width: 24px;
+      border-radius: 4px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .input-container {
+      position: relative;
+    }
+
+    .input-container span {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    input[type="tel"], input[type="text"] {
+      width: 100%;
+      padding: 15px 15px 15px 50px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+
+    input[type="text"].otp-input {
+      padding-left: 15px;
+      letter-spacing: 8px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 10px rgba(205, 164, 94, 0.15);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(90deg, #cda45e 0%, #b88f4c 100%);
+      border: none;
+      border-radius: 12px;
+      color: #000;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn:hover {
+      background: linear-gradient(90deg, #dcb87a 0%, #cda45e 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(205, 164, 94, 0.3);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .legal-notice {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 25px;
+      line-height: 1.4;
+    }
+
+    .legal-notice a {
+      color: var(--primary);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .legal-notice a:hover {
+      text-decoration: underline;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .alert-error {
+      background: rgba(224, 49, 49, 0.15);
+      border: 1px solid rgba(224, 49, 49, 0.3);
+      color: #ff8787;
+    }
+
+    .alert-success {
+      background: rgba(43, 138, 62, 0.15);
+      border: 1px solid rgba(43, 138, 62, 0.3);
+      color: #8ce99a;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(0,0,0,0.1);
+      border-top: 2px solid #000;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .timer-text {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 15px;
+    }
+
+    .timer-text span {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Device Mock values details box */
+    .device-info {
+      margin-top: 25px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 15px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .device-info span {
+      display: flex;
+      justify-content: space-between;
+    }
+    .device-info span strong {
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="logo-area">
+      <div class="logo-icon">🍽️</div>
+      <h1>Karaköy <span>Gurme</span></h1>
+      <p>Ücretsiz Misafir Wi-Fi Ağına Hoş Geldiniz</p>
+    </div>
+
+    <div class="step-indicator">
+      <div class="dot active" id="dot1"></div>
+      <div class="dot" id="dot2"></div>
+    </div>
+
+    <div id="alert-box" class="alert alert-error"> Hata mesajı</div>
+
+    <!-- STEP 1: Phone Entry Form -->
+    <div id="step-phone">
+      <form id="form-phone" onsubmit="sendOTP(event)">
+        <div class="form-group">
+          <label for="phone">Cep Telefonu Numaranız</label>
+          <div class="input-container">
+            <span>+90</span>
+            <input type="tel" id="phone" placeholder="5XXXXXXXXX" required minlength="10" maxlength="10" pattern="5[0-9]{9}">
+          </div>
+        </div>
+        
+        <button type="submit" class="btn" id="btn-phone">
+          <div class="spinner" id="spinner-phone"></div>
+          <span>Doğrulama Kodu Gönder</span>
+        </button>
+      </form>
+      
+      <p class="legal-notice">
+        Bu sisteme bağlanarak 5651 sayılı kanun kapsamındaki yasal loglama yükümlülüklerini ve 
+        <a href="#" onclick="alert('KVKK Aydınlatma Metni: İnternet trafiğiniz yasal uyumluluk amacıyla kayıt altına alınmaktadır. Telefon numaranız ve cihaz kimliğiniz (MAC) suç önleme amacıyla zaman damgasıyla mühürlenir ve 2 yıl saklanır.')">KVKK Aydınlatma Metni</a>'ni kabul etmiş olursunuz.
+      </p>
+    </div>
+
+    <!-- STEP 2: OTP Verification Form -->
+    <div id="step-otp" class="hidden">
+      <form id="form-otp" onsubmit="verifyOTP(event)">
+        <div class="form-group">
+          <label for="otp">Lütfen gelen 6 haneli şifreyi giriniz</label>
+          <input type="text" id="otp" class="otp-input" placeholder="000000" required minlength="6" maxlength="6" pattern="[0-9]{6}">
+        </div>
+
+        <button type="submit" class="btn" id="btn-otp">
+          <div class="spinner" id="spinner-otp"></div>
+          <span>Giriş Yap ve İnternete Bağlan</span>
+        </button>
+      </form>
+
+      <div class="timer-text" id="resend-container">
+        Yeni şifre isteyebileceğiniz süre: <span id="countdown">180</span> saniye
+      </div>
+      <div class="timer-text hidden" id="resend-action">
+        <a href="#" onclick="backToPhone(event)" style="color: var(--primary); text-decoration: none;">Telefonu Değiştir / Tekrar Gönder</a>
+      </div>
+    </div>
+
+    <!-- Simulated Gateway Submission Form (Hidden) -->
+    <!-- When client verifies OTP, we must submit to the pfSense captive portal page to authorize them -->
+    <form id="gateway-submit-form" method="POST" action="" class="hidden">
+      <input type="hidden" name="auth_user" id="gateway-username">
+      <input type="hidden" name="auth_pass" id="gateway-password">
+      <input type="hidden" name="redirurl" id="gateway-redirurl">
+      <input type="hidden" name="accept" value="Continue">
+    </form>
+
+    <div class="device-info">
+      <span>Cihaz IP Adresi: <strong id="info-ip">Tespit Ediliyor...</strong></span>
+      <span>Cihaz MAC Adresi: <strong id="info-mac">Tespit Ediliyor...</strong></span>
+    </div>
+  </div>
+
+  <script>
+    // Extract query parameters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientMac = urlParams.get('clientMac') || urlParams.get('mac') || '00:aa:bb:cc:dd:ee'; // Fallback for simulation
+    const clientIp = urlParams.get('clientIp') || urlParams.get('ip') || '192.168.20.15'; // Fallback
+    const redirUrl = urlParams.get('redirurl') || urlParams.get('link-orig') || 'https://www.google.com';
+    const gatewayUrl = urlParams.get('gatewayurl') || 'http://192.168.20.1:8002/index.php'; // Default pfSense portal URL
+
+    // Set UI details
+    document.getElementById('info-ip').textContent = clientIp;
+    document.getElementById('info-mac').textContent = clientMac.toUpperCase();
+
+    // Populate gateway hidden form
+    document.getElementById('gateway-submit-form').action = gatewayUrl;
+    document.getElementById('gateway-username').value = clientMac.toLowerCase().replace(/[^a-f0-9]/g, '');
+    document.getElementById('gateway-password').value = clientMac.toLowerCase().replace(/[^a-f0-9]/g, '');
+    document.getElementById('gateway-redirurl').value = redirUrl;
+
+    let countdownTimer;
+
+    function showAlert(msg, isSuccess = false) {
+      const alertBox = document.getElementById('alert-box');
+      alertBox.textContent = msg;
+      alertBox.className = 'alert ' + (isSuccess ? 'alert-success' : 'alert-error');
+      alertBox.style.display = 'block';
+    }
+
+    function hideAlert() {
+      document.getElementById('alert-box').style.display = 'none';
+    }
+
+    function toggleLoading(btnId, spinnerId, isLoading) {
+      const btn = document.getElementById(btnId);
+      const spinner = document.getElementById(spinnerId);
+      btn.disabled = isLoading;
+      spinner.style.display = isLoading ? 'block' : 'none';
+    }
+
+    async function sendOTP(event) {
+      event.preventDefault();
+      hideAlert();
+      toggleLoading('btn-phone', 'spinner-phone', true);
+
+      const phone = document.getElementById('phone').value;
+
+      try {
+        const response = await fetch('/api/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mac: clientMac,
+            phone: phone
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showAlert('Doğrulama kodu başarıyla gönderildi! (Mock API: ' + result.otpCode + ')', true);
+          
+          // Switch to OTP step
+          document.getElementById('step-phone').classList.add('hidden');
+          document.getElementById('step-otp').classList.remove('hidden');
+          document.getElementById('dot1').classList.remove('active');
+          document.getElementById('dot2').classList.add('active');
+
+          startCountdown(180);
+        } else {
+          showAlert(result.message || 'Kod gönderilemedi. Lütfen tekrar deneyin.');
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('Sunucu ile iletişim kurulamadı. Lütfen ağınızı kontrol edin.');
+      } finally {
+        toggleLoading('btn-phone', 'spinner-phone', false);
+      }
+    }
+
+    async function verifyOTP(event) {
+      event.preventDefault();
+      hideAlert();
+      toggleLoading('btn-otp', 'spinner-otp', true);
+
+      const otp = document.getElementById('otp').value;
+
+      try {
+        const response = await fetch('/api/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mac: clientMac,
+            otp: otp
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          const hasRealGateway = urlParams.has('gatewayurl');
+          const leaseIp = result.leaseIp || clientIp;
+
+          if (hasRealGateway) {
+            // Real pfSense/ESP32 gateway present -> hand off login to it
+            showAlert('Girişiniz doğrulandı. Yönlendiriliyorsunuz...', true);
+            setTimeout(() => {
+              console.log('Submitting login form to gateway:', gatewayUrl);
+              document.getElementById('gateway-submit-form').submit();
+            }, 1500);
+          } else {
+            // Pure-software simulation -> show success screen (no gateway to POST to)
+            document.querySelector('.container').innerHTML = `
+              <div class="logo-area">
+                <div class="logo-icon">✅</div>
+                <h1>Bağlan<span>tı Açık</span></h1>
+                <p>İnternet erişiminiz aktifleştirildi</p>
+              </div>
+              <div class="device-info" style="border-top:none;">
+                <span>Durum: <strong style="color:#8ce99a;">RADIUS oturumu açıldı</strong></span>
+                <span>Cihaz IP: <strong>${leaseIp}</strong></span>
+                <span>Cihaz MAC: <strong>${clientMac.toUpperCase()}</strong></span>
+              </div>
+              <p class="legal-notice" style="margin-top:20px;">
+                İnternet trafiğiniz 5651 sayılı kanun kapsamında zaman damgalı olarak kayıt altına alınmaktadır.
+              </p>`;
+          }
+        } else {
+          showAlert(result.message || 'Hatalı veya süresi geçmiş kod girdiniz.');
+          toggleLoading('btn-otp', 'spinner-otp', false);
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('Sunucu ile iletişim kurulamadı.');
+        toggleLoading('btn-otp', 'spinner-otp', false);
+      }
+    }
+
+    function startCountdown(seconds) {
+      let counter = seconds;
+      clearInterval(countdownTimer);
+      
+      const countdownEl = document.getElementById('countdown');
+      const resendContainer = document.getElementById('resend-container');
+      const resendAction = document.getElementById('resend-action');
+      
+      resendContainer.classList.remove('hidden');
+      resendAction.classList.add('hidden');
+
+      countdownTimer = setInterval(() => {
+        counter--;
+        countdownEl.textContent = counter;
+
+        if (counter <= 0) {
+          clearInterval(countdownTimer);
+          resendContainer.classList.add('hidden');
+          resendAction.classList.remove('hidden');
+        }
+      }, 1000);
+    }
+
+    function backToPhone(event) {
+      event.preventDefault();
+      clearInterval(countdownTimer);
+      document.getElementById('step-phone').classList.remove('hidden');
+      document.getElementById('step-otp').classList.add('hidden');
+      document.getElementById('dot1').classList.add('active');
+      document.getElementById('dot2').classList.remove('active');
+      hideAlert();
+    }
+  </script>
+</body>
+</html>

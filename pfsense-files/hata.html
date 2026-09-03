@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bağlantı Hatası - Karaköy Gurme</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0c0b09;
+      --bg-card: rgba(26, 25, 22, 0.9);
+      --text: #eeeeee;
+      --text-muted: #a49f96;
+      --primary: #cda45e;
+      --error: #e03131;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #111 0%, #050505 100%);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 440px;
+      background: var(--bg-card);
+      border: 1px solid rgba(224, 49, 49, 0.2);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+      padding: 45px 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      text-align: center;
+      z-index: 10;
+    }
+
+    .error-icon {
+      font-size: 3.5rem;
+      color: var(--error);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: 30px;
+    }
+
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(90deg, #cda45e 0%, #b88f4c 100%);
+      border: none;
+      border-radius: 12px;
+      color: #000;
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      background: linear-gradient(90deg, #dcb87a 0%, #cda45e 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(205, 164, 94, 0.25);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="error-icon">⚠️</div>
+    <h1>Bağlantı Başarısız Oldu</h1>
+    <p>
+      Giriş yetkilendirmesi sırasında bir ağ hatası oluştu. 
+      Lütfen Wi-Fi bağlantınızı kapatıp tekrar açın veya giriş bilgilerinizin doğruluğundan emin olun.
+    </p>
+    <a href="/index.php" class="btn">Tekrar Dene</a>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+
+==================================================================
+  wifi-system — GUVENLIK SALDIRI TESTI
+  Hedef: http://localhost:3000   Tarih: 01.09.2026 19:20:27
+==================================================================
+
+  [A1] GECTI(acik var) OTP kaba kuvvet
+        -> 300 yanlis deneme yapildi ve sistem hic kilitlemedi — sinirsiz kaba kuvvet mumkun.
+  [A2] GECTI(acik var) SMS bombalama (MAC rotasyonu)
+        -> 20 SMS tetiklendi — MAC degistirerek limit asildi.
+  [A3] GECTI(acik var) Cerezsiz log silme
+        -> 5651 delil dosyalari kimlik dogrulamasiz silinebildi!
+  [A4] GECTI(acik var) Cerezsiz gecmis sorgusu
+        -> Telefon/MAC gecmisi kimlik dogrulamasiz sorgulandi (500 kayit dondu).
+  [A5] BILGI           ESP32 imzasiz yetkilendirme
+        -> ESP32_AP_URL bos — ag testi atlandi. Backend imza uretimi Adim 5 sonrasi yerelde dogrulanir.
+  [A7] BILGI           Yonetici girisi kaba kuvvet
+        -> Login uc noktasi henuz yok (F-12 uygulanmadan once normal).
+
+──────────────────────────────────────────────────────────────────
+  OZET:  0 engellendi   4 acik hala mevcut
+──────────────────────────────────────────────────────────────────
+  ! Acik(lar) mevcut — duzeltme oncesi bekleniyor.
+

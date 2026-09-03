@@ -1,0 +1,24 @@
+
+==================================================================
+  wifi-system — GUVENLIK SALDIRI TESTI
+  Hedef: http://localhost:3000   Tarih: 01.09.2026 19:30:13
+==================================================================
+
+  [A1] ENGELLENDI      OTP kaba kuvvet
+        -> 5. yanlis denemede akis kilitlendi (429) — sinirsiz deneme engellendi.
+  [A2] ENGELLENDI      SMS bombalama (MAC rotasyonu)
+        -> 2. istekte 429 — telefon basina limit tuttu (toplam 1 gecti).
+  [A3] ENGELLENDI      Cerezsiz log silme
+        -> Beklenmeyen status 302 (silme gerceklesmedi).
+  [A4] ENGELLENDI      Cerezsiz gecmis sorgusu
+        -> Status 302.
+  [A5] BILGI           ESP32 imzasiz yetkilendirme
+        -> ESP32_AP_URL bos — ag testi atlandi. Backend imza uretimi Adim 5 sonrasi yerelde dogrulanir.
+  [A7] ENGELLENDI      Yonetici girisi kaba kuvvet
+        -> 5. denemede 429.
+
+──────────────────────────────────────────────────────────────────
+  OZET:  5 engellendi   0 acik hala mevcut
+──────────────────────────────────────────────────────────────────
+  + Tum saldirilar engellendi.
+

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karaköy Gurme - Misafir Wi-Fi Doğrulama</title>
+  <!-- Google Fonts: Outfit -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #cda45e;
+      --primary-hover: #dcb87a;
+      --bg-dark: #0c0b09;
+      --bg-card: rgba(26, 25, 22, 0.9);
+      --text: #eeeeee;
+      --text-muted: #a49f96;
+      --success: #2b8a3e;
+      --error: #e03131;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #111 0%, #050505 100%);
+      background-size: cover;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient background light spheres */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(205, 164, 94, 0.15) 0%, transparent 70%);
+      top: 10%;
+      left: 10%;
+      z-index: 0;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 440px;
+      background: var(--bg-card);
+      border: 1px solid rgba(205, 164, 94, 0.2);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 24px;
+      padding: 40px 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      z-index: 10;
+      position: relative;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo-area {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .logo-icon {
+      font-size: 2.8rem;
+      color: var(--primary);
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+
+    .logo-area h1 {
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #fff;
+      margin-bottom: 5px;
+    }
+
+    .logo-area h1 span {
+      color: var(--primary);
+    }
+
+    .logo-area p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 30px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      background: var(--primary);
+      width: 24px;
+      border-radius: 4px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .input-container {
+      position: relative;
+    }
+
+    .input-container span {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    input[type="tel"], input[type="text"] {
+      width: 100%;
+      padding: 15px 15px 15px 50px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+
+    input[type="text"].otp-input {
+      padding-left: 15px;
+      letter-spacing: 8px;
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 10px rgba(205, 164, 94, 0.15);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(90deg, #cda45e 0%, #b88f4c 100%);
+      border: none;
+      border-radius: 12px;
+      color: #000;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn:hover {
+      background: linear-gradient(90deg, #dcb87a 0%, #cda45e 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(205, 164, 94, 0.25);
+    }
+
+    .btn:disabled {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      display: none;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .alert-error {
+      background: rgba(224, 49, 49, 0.15);
+      border: 1px solid rgba(224, 49, 49, 0.25);
+      color: #ff8787;
+    }
+
+    .alert-success {
+      background: rgba(43, 138, 62, 0.15);
+      border: 1px solid rgba(43, 138, 62, 0.25);
+      color: #8ce99a;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0,0,0,0.1);
+      border-top: 2px solid #000;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .timer-text {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 15px;
+    }
+
+    .timer-text span {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .legal-notice {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 25px;
+      line-height: 1.4;
+    }
+
+    .legal-notice a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .legal-notice a:hover {
+      text-decoration: underline;
+    }
+
+    .device-info {
+      margin-top: 25px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 15px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .device-info span {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .device-info span strong {
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="logo-area">
+      <div class="logo-icon">🍽️</div>
+      <h1>Karaköy <span>Gurme</span></h1>
+      <p>Misafir İnternet Hizmeti SMS Doğrulama Sistemi</p>
+    </div>
+
+    <div class="step-indicator">
+      <div class="dot active" id="dot1"></div>
+      <div class="dot" id="dot2"></div>
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <!-- STEP 1: Phone Submission -->
+    <div id="step-phone">
+      <form onsubmit="sendOTP(event)">
+        <div class="form-group">
+          <label for="phone">Cep Telefonu Numaranız</label>
+          <div class="input-container">
+            <span>+90</span>
+            <input type="tel" id="phone" placeholder="5XXXXXXXXX" required minlength="10" maxlength="10" pattern="5[0-9]{9}">
+          </div>
+        </div>
+        
+        <button type="submit" class="btn" id="btn-phone">
+          <div class="spinner" id="spinner-phone"></div>
+          <span>SMS Doğrulama Kodu Gönder</span>
+        </button>
+      </form>
+      
+      <p class="legal-notice">
+        Bağlantı sağlayarak 5651 sayılı kanun kapsamındaki loglama süreçlerini ve 
+        <a href="#" onclick="alert('KVKK Metni: Cihazınıza atanan IP ve MAC adresi yasal loglama yükümlülüğü gereğince telefon numaranızla ilişkilendirilerek 2 yıl boyunca mühürlü saklanmaktadır.')">KVKK Aydınlatma Metni</a>'ni onaylamış olursunuz.
+      </p>
+    </div>
+
+    <!-- STEP 2: OTP Verification -->
+    <div id="step-otp" class="hidden">
+      <form onsubmit="verifyOTP(event)">
+        <div class="form-group">
+          <label for="otp">Lütfen gelen 6 haneli şifreyi giriniz</label>
+          <input type="text" id="otp" class="otp-input" placeholder="000000" required minlength="6" maxlength="6" pattern="[0-9]{6}">
+        </div>
+
+        <button type="submit" class="btn" id="btn-otp">
+          <div class="spinner" id="spinner-otp"></div>
+          <span>Kodu Doğrula ve İnternete Çık</span>
+        </button>
+      </form>
+
+      <div class="timer-text" id="resend-container">
+        Yeni şifre isteyebileceğiniz süre: <span id="countdown">180</span> saniye
+      </div>
+      <div class="timer-text hidden" id="resend-action">
+        <a href="#" onclick="backToPhone(event)" style="color: var(--primary); text-decoration: none;">Numarayı Değiştir / Tekrar Gönder</a>
+      </div>
+    </div>
+
+    <!-- pfSense Captive Portal Login Form (POSTs back to pfSense local authenticator) -->
+    <!-- pfSense expects auth_user (mac), auth_pass (mac), redirurl and accept -->
+    <form id="pfsense-login-form" method="POST" action="$PORTAL_ACTION$" class="hidden">
+      <input type="hidden" name="auth_user" id="pf-username">
+      <input type="hidden" name="auth_pass" id="pf-password">
+      <input type="hidden" name="redirurl" value="$PORTAL_REDIRURL$">
+      <input type="hidden" name="accept" value="Continue">
+    </form>
+
+    <div class="device-info">
+      <span>IP Adresiniz: <strong>$PORTAL_CLIENTIP$</strong></span>
+      <span>MAC Adresiniz: <strong>$PORTAL_CLIENTMAC$</strong></span>
+    </div>
+  </div>
+
+  <script>
+    // Capture pfSense macros in Javascript variables
+    // pfSense replaces these strings with real client variables at runtime.
+    const clientMac = "$PORTAL_CLIENTMAC$"; 
+    const clientIp = "$PORTAL_CLIENTIP$";
+    const portalAction = "$PORTAL_ACTION$";
+    const redirUrl = "$PORTAL_REDIRURL$";
+
+    // Clean MAC: remove non-alphanumeric and lowercase
+    const cleanMac = clientMac.toLowerCase().replace(/[^a-f0-9]/g, '');
+
+    // Set hidden login form fields
+    document.getElementById('pf-username').value = cleanMac;
+    document.getElementById('pf-password').value = cleanMac;
+
+    let countdownTimer;
+
+    function showAlert(msg, isSuccess = false) {
+      const alertBox = document.getElementById('alert-box');
+      alertBox.textContent = msg;
+      alertBox.className = 'alert ' + (isSuccess ? 'alert-success' : 'alert-error');
+      alertBox.style.display = 'block';
+    }
+
+    function hideAlert() {
+      document.getElementById('alert-box').style.display = 'none';
+    }
+
+    function toggleLoading(btnId, spinnerId, isLoading) {
+      const btn = document.getElementById(btnId);
+      const spinner = document.getElementById(spinnerId);
+      btn.disabled = isLoading;
+      spinner.style.display = isLoading ? 'block' : 'none';
+    }
+
+    async function sendOTP(event) {
+      event.preventDefault();
+      hideAlert();
+      toggleLoading('btn-phone', 'spinner-phone', true);
+
+      const phone = document.getElementById('phone').value;
+
+      try {
+        // Post to captiveportal-sms.php residing in the same pfSense web folder
+        const response = await fetch('captiveportal-sms.php?action=send_otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mac: clientMac,
+            phone: phone
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          // If simulation mode is active, show the OTP directly for test convenience
+          let successMsg = result.message;
+          if (result.otpCode) {
+            successMsg += ' [Simülasyon Kodu: ' + result.otpCode + ']';
+          }
+          showAlert(successMsg, true);
+          
+          document.getElementById('step-phone').classList.add('hidden');
+          document.getElementById('step-otp').classList.remove('hidden');
+          document.getElementById('dot1').classList.remove('active');
+          document.getElementById('dot2').classList.add('active');
+
+          startCountdown(180);
+        } else {
+          showAlert(result.message || 'Kod gönderilemedi.');
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('Yönlendirici SMS servisiyle bağlantı kurulamadı.');
+      } finally {
+        toggleLoading('btn-phone', 'spinner-phone', false);
+      }
+    }
+
+    async function verifyOTP(event) {
+      event.preventDefault();
+      hideAlert();
+      toggleLoading('btn-otp', 'spinner-otp', true);
+
+      const otp = document.getElementById('otp').value;
+
+      try {
+        const response = await fetch('captiveportal-sms.php?action=verify_otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mac: clientMac,
+            otp: otp
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          showAlert('Doğrulama başarılı! İnternete bağlanıyorsunuz...', true);
+          
+          // Submit to pfSense gateway login action
+          setTimeout(() => {
+            document.getElementById('pfsense-login-form').submit();
+          }, 1500);
+        } else {
+          showAlert(result.message || 'Geçersiz şifre girdiniz.');
+          toggleLoading('btn-otp', 'spinner-otp', false);
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('Kimlik doğrulama servisi yanıt vermiyor.');
+        toggleLoading('btn-otp', 'spinner-otp', false);
+      }
+    }
+
+    function startCountdown(seconds) {
+      let counter = seconds;
+      clearInterval(countdownTimer);
+      
+      const countdownEl = document.getElementById('countdown');
+      const resendContainer = document.getElementById('resend-container');
+      const resendAction = document.getElementById('resend-action');
+      
+      resendContainer.classList.remove('hidden');
+      resendAction.classList.add('hidden');
+
+      countdownTimer = setInterval(() => {
+        counter--;
+        countdownEl.textContent = counter;
+
+        if (counter <= 0) {
+          clearInterval(countdownTimer);
+          resendContainer.classList.add('hidden');
+          resendAction.classList.remove('hidden');
+        }
+      }, 1000);
+    }
+
+    function backToPhone(event) {
+      event.preventDefault();
+      clearInterval(countdownTimer);
+      document.getElementById('step-phone').classList.remove('hidden');
+      document.getElementById('step-otp').classList.add('hidden');
+      document.getElementById('dot1').classList.add('active');
+      document.getElementById('dot2').classList.remove('active');
+      hideAlert();
+    }
+  </script>
+</body>
+</html>

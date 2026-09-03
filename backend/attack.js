@@ -1,0 +1,191 @@
+/*
+  =============================================================================
+  attack.js — Güvenlik Regresyon / Kötüye Kullanım Test Sürücüsü
+  =============================================================================
+  Çalışan sunucuya karşı, GUVENLIK-DEGERLENDIRMESI.md'de listelenen açıkları
+  sırayla dener. Her saldırı için beklenen "düzeltme sonrası" davranış tanımlıdır.
+
+  Kullanım:
+    node server.js        # 1. terminal
+    npm run attack        # 2. terminal
+
+  Düzeltmelerden ÖNCE: çoğu satır "GEÇTİ (açık var)" verir  -> docs/attack-before.txt
+  Düzeltmelerden SONRA: tüm satırlar "ENGELLENDİ" olmalı     -> docs/attack-after.txt
+
+  Not: Bu betik saldırganı taklit eder; yalnızca yerel/izinli test içindir.
+*/
+
+const crypto = require('crypto');
+const config = require('./config');
+
+const BASE = `http://localhost:${config.PORT}`;
+const line = (c = '─', n = 66) => c.repeat(n);
+
+let passVuln = 0;   // açık hâlâ açık (kötü)
+let blocked = 0;    // saldırı engellendi (iyi)
+const rows = [];
+
+function record(id, title, outcome, detail) {
+  // outcome: 'BLOCKED' | 'VULN' | 'INFO'
+  if (outcome === 'BLOCKED') blocked++;
+  else if (outcome === 'VULN') passVuln++;
+  rows.push({ id, title, outcome, detail });
+  const tag = outcome === 'BLOCKED' ? 'ENGELLENDI     '
+            : outcome === 'VULN'    ? 'GECTI(acik var)'
+            :                          'BILGI          ';
+  console.log(`  [${id}] ${tag} ${title}`);
+  if (detail) console.log(`        -> ${detail}`);
+}
+
+async function req(path, { method = 'GET', body, headers = {}, cookie } = {}) {
+  const h = { ...headers };
+  if (body !== undefined) h['Content-Type'] = 'application/json';
+  if (cookie) h['Cookie'] = cookie;
+  const res = await fetch(BASE + path, {
+    method,
+    headers: h,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    redirect: 'manual',
+  });
+  let json = null;
+  try { json = await res.json(); } catch (_) {}
+  return { status: res.status, json, headers: res.headers };
+}
+
+function randomMac() {
+  const h = () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+  return `${h()}:${h()}:${h()}:${h()}:${h()}:${h()}`;
+}
+
+function randomPhone() {
+  return '5' + Math.floor(300000000 + Math.random() * 600000000);
+}
+
+// --- A1: OTP kaba kuvvet -----------------------------------------------------
+async function a1() {
+  const mac = randomMac();
+  const phone = randomPhone();
+  const send = await req('/api/send-otp', { method: 'POST', body: { mac, phone } });
+  if (send.status !== 200) {
+    return record('A1', 'OTP kaba kuvvet', 'INFO',
+      `OTP istenemedi (status ${send.status}); onceki limit tetiklenmis olabilir.`);
+  }
+  // Simülasyonda gerçek kod yanıtta gelir; onu bilerek KULLANMIYORUZ (saldırgan bilmez).
+  // Açığın özü "deneme sınırı yok" — kanıt, kilitlenmeden sınırsız deneme yapabilmek.
+  // 6 haneli kod = 1.000.000 olasılık; gerçekten kırmayı denemek yerine, kaç yanlış
+  // denemeden sonra sistemin bizi kilitlediğini ölçüyoruz.
+  const BUDGET = 300;
+  let accepted = false, lockedAt = null, tried = 0;
+  for (let i = 0; i < BUDGET; i++) {
+    const guess = String(100000 + i);            // sıralı deneme (kod rastgele, bulunması beklenmez)
+    const v = await req('/api/verify-otp', { method: 'POST', body: { mac, otp: guess } });
+    tried++;
+    if (v.status === 200 && v.json && v.json.success) { accepted = true; break; }
+    if (v.status === 429) { lockedAt = tried; break; }
+  }
+  if (accepted) record('A1', 'OTP kaba kuvvet', 'VULN', 'Kod deneyerek dogrulama asildi.');
+  else if (lockedAt !== null) record('A1', 'OTP kaba kuvvet', 'BLOCKED',
+      `${lockedAt}. yanlis denemede akis kilitlendi (429) — sinirsiz deneme engellendi.`);
+  else record('A1', 'OTP kaba kuvvet', 'VULN',
+      `${tried} yanlis deneme yapildi ve sistem hic kilitlemedi — sinirsiz kaba kuvvet mumkun.`);
+}
+
+// --- A2: SMS bombalama (MAC değiştirerek limit atlama) ------------------------
+async function a2() {
+  const phone = randomPhone();
+  let sent = 0, firstBlockAt = null;
+  for (let i = 0; i < 20; i++) {
+    const r = await req('/api/send-otp', { method: 'POST', body: { mac: randomMac(), phone } });
+    if (r.status === 200) sent++;
+    else if (r.status === 429 && firstBlockAt === null) { firstBlockAt = i + 1; break; }
+  }
+  if (sent >= 5) record('A2', 'SMS bombalama (MAC rotasyonu)', 'VULN',
+      `${sent} SMS tetiklendi — MAC degistirerek limit asildi.`);
+  else record('A2', 'SMS bombalama (MAC rotasyonu)', 'BLOCKED',
+      `${firstBlockAt}. istekte 429 — telefon basina limit tuttu (toplam ${sent} gecti).`);
+}
+
+// --- A3: Kimlik doğrulamasız log silme --------------------------------------
+async function a3() {
+  const r = await req('/api/dashboard/clear-logs', { method: 'POST', body: {} });
+  if (r.status === 200) record('A3', 'Cerezsiz log silme', 'VULN',
+      '5651 delil dosyalari kimlik dogrulamasiz silinebildi!');
+  else if (r.status === 401 || r.status === 403) record('A3', 'Cerezsiz log silme', 'BLOCKED',
+      `Erisim reddedildi (${r.status}).`);
+  else record('A3', 'Cerezsiz log silme', 'BLOCKED', `Beklenmeyen status ${r.status} (silme gerceklesmedi).`);
+}
+
+// --- A4: Kimlik doğrulamasız geçmiş sorgusu ---------------------------------
+async function a4() {
+  const r = await req('/api/dashboard/search?q=5');
+  if (r.status === 200 && r.json && Array.isArray(r.json.matches)) {
+    record('A4', 'Cerezsiz gecmis sorgusu', 'VULN',
+      `Telefon/MAC gecmisi kimlik dogrulamasiz sorgulandi (${r.json.matches.length} kayit dondu).`);
+  } else if (r.status === 401 || r.status === 403) {
+    record('A4', 'Cerezsiz gecmis sorgusu', 'BLOCKED', `Erisim reddedildi (${r.status}).`);
+  } else {
+    record('A4', 'Cerezsiz gecmis sorgusu', 'BLOCKED', `Status ${r.status}.`);
+  }
+}
+
+// --- A5: ESP32 imzasız yetkilendirme ----------------------------------------
+// ESP32 ağ testi yalnızca ESP32_AP_URL tanımlıysa yapılır.
+async function a5() {
+  const url = config.esp32 && config.esp32.apUrl;
+  if (!url) {
+    record('A5', 'ESP32 imzasiz yetkilendirme', 'INFO',
+      'ESP32_AP_URL bos — ag testi atlandi. Backend imza uretimi Adim 5 sonrasi yerelde dogrulanir.');
+    return;
+  }
+  try {
+    const r = await fetch(url.replace(/\/$/, '') + '/authorize', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mac: randomMac(), ts: Math.floor(Date.now() / 1000), nonce: crypto.randomBytes(8).toString('hex') }),
+    });
+    if (r.status === 401 || r.status === 403) record('A5', 'ESP32 imzasiz yetkilendirme', 'BLOCKED', `ESP32 reddetti (${r.status}).`);
+    else record('A5', 'ESP32 imzasiz yetkilendirme', 'VULN', `Imzasiz istek kabul edildi (${r.status}).`);
+  } catch (e) {
+    record('A5', 'ESP32 imzasiz yetkilendirme', 'INFO', `ESP32 erisilemedi: ${e.message}`);
+  }
+}
+
+// --- A7: Yönetici girişi kaba kuvvet ----------------------------------------
+async function a7() {
+  let ok = false, blockAt = null;
+  for (let i = 0; i < 20; i++) {
+    const r = await req('/api/auth/login', { method: 'POST', body: { user: 'admin', password: 'yanlis' + i } });
+    if (r.status === 200) { ok = true; break; }
+    if (r.status === 429) { blockAt = i + 1; break; }
+    if (r.status === 404) {
+      return record('A7', 'Yonetici girisi kaba kuvvet', 'INFO', 'Login uc noktasi henuz yok (F-12 uygulanmadan once normal).');
+    }
+  }
+  if (ok) record('A7', 'Yonetici girisi kaba kuvvet', 'VULN', 'Yanlis parola kabul edildi!');
+  else if (blockAt !== null) record('A7', 'Yonetici girisi kaba kuvvet', 'BLOCKED', `${blockAt}. denemede 429.`);
+  else record('A7', 'Yonetici girisi kaba kuvvet', 'BLOCKED', '20 yanlis deneme reddedildi.');
+}
+
+async function main() {
+  console.log('\n' + line('='));
+  console.log('  wifi-system — GUVENLIK SALDIRI TESTI');
+  console.log(`  Hedef: ${BASE}   Tarih: ${new Date().toLocaleString()}`);
+  console.log(line('=') + '\n');
+  try {
+    await a1(); await a2(); await a3(); await a4(); await a5(); await a7();
+  } catch (e) {
+    console.error('\n  Test surucusu hata verdi (sunucu calisiyor mu?):', e.message);
+    process.exit(2);
+  }
+  console.log('\n' + line('─'));
+  console.log(`  OZET:  ${blocked} engellendi   ${passVuln} acik hala mevcut`);
+  console.log(line('─'));
+  if (passVuln > 0) {
+    console.log('  ! Acik(lar) mevcut — duzeltme oncesi bekleniyor.\n');
+    process.exit(1);
+  } else {
+    console.log('  + Tum saldirilar engellendi.\n');
+    process.exit(0);
+  }
+}
+
+main();
