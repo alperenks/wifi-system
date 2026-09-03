@@ -528,6 +528,7 @@
           }
 
           const kotaDoldu = sess.terminateCause === 'quota';
+          const sureDoldu = sess.terminateCause === 'timeout';
           const controls = sess.active
             ? `<div style="display:flex; gap:6px;">
                  <button class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:0.75rem;" onclick="browseFor('${sess.ip}')">Gezin</button>
@@ -535,7 +536,9 @@
                </div>`
             : (kotaDoldu
               ? `<span class="session-status quota" title="Veri kotası aşıldı, RFC 5176 Disconnect ile düşürüldü">Kota doldu</span>`
-              : `<span class="session-status inactive">Koptu</span>`);
+              : sureDoldu
+                ? `<span class="session-status inactive" title="Session-Timeout doldu; oturum otomatik kapatıldı">Süre doldu</span>`
+                : `<span class="session-status inactive">Koptu</span>`);
           item.innerHTML = `
             <div class="session-info">
               <span class="ip-mac">${sess.ip} / <span style="color: var(--primary);">${sess.username.toUpperCase()}</span></span>

@@ -365,3 +365,63 @@ test('biriktirme veri kaybetmez: son durum diske yansir', async () => {
   assert.strictEqual(kaydedilen.guestFlows.at(-1).verified, true, 'son durum diske yazilmali');
   assert.ok(kaydedilen.radcheck['aabbccddf301'], 'RADIUS kaydi da diskte olmali');
 });
+
+// --- G2: Suresi dolan oturumlarin kapatilmasi --------------------------------
+
+test('expireStaleSessions suresi dolan oturumlari kapatir, yenileri birakir', () => {
+  const now = Date.now();
+  const omurMs = 7200 * 1000;                    // Session-Timeout = 2 saat
+
+  db.data.radacct = [
+    { sessionId: 'eski',  username: 'a', ip: '192.168.20.100', startTime: now - 3 * 3600 * 1000, endTime: null, active: true },
+    { sessionId: 'taze',  username: 'b', ip: '192.168.20.101', startTime: now - 600 * 1000,      endTime: null, active: true },
+    { sessionId: 'kapali', username: 'c', ip: '192.168.20.102', startTime: now - 5 * 3600 * 1000, endTime: now - 4 * 3600 * 1000, active: false },
+  ];
+
+  const kapatilan = db.expireStaleSessions(omurMs);
+
+  assert.strictEqual(kapatilan, 1);
+  const eski = db.data.radacct.find(s2 => s2.sessionId === 'eski');
+  assert.strictEqual(eski.active, false);
+  assert.strictEqual(eski.terminateCause, 'timeout');
+  assert.strictEqual(eski.endTime, eski.startTime + omurMs,
+    'bitis zamani, fark edilen an degil surenin doldugu an olmali');
+
+  assert.strictEqual(db.data.radacct.find(s2 => s2.sessionId === 'taze').active, true);
+});
+
+test('expireStaleSessions kapatilacak oturum yoksa 0 doner ve tekrar cagrilabilir', () => {
+  const now = Date.now();
+  db.data.radacct = [
+    { sessionId: 'taze', username: 'a', ip: '192.168.20.100', startTime: now, endTime: null, active: true },
+  ];
+
+  assert.strictEqual(db.expireStaleSessions(7200 * 1000), 0);
+  assert.strictEqual(db.expireStaleSessions(7200 * 1000), 0, 'ikinci cagri da sorunsuz olmali');
+});
+
+test('expireStaleSessions gecersiz sure degerinde hicbir seyi kapatmaz', () => {
+  db.data.radacct = [
+    { sessionId: 'eski', username: 'a', ip: '192.168.20.100', startTime: 0, endTime: null, active: true },
+  ];
+
+  for (const gecersiz of [0, -1, NaN, undefined, null, 'iki saat']) {
+    assert.strictEqual(db.expireStaleSessions(gecersiz), 0, `gecersiz: ${String(gecersiz)}`);
+  }
+  assert.strictEqual(db.data.radacct[0].active, true, 'oturum el degmemis kalmali');
+});
+
+test('kota ile kapanan oturum, sure dolmasi ile kapananla karismaz', () => {
+  const now = Date.now();
+  db.data.radacct = [
+    { sessionId: 'kota', username: 'a', ip: '192.168.20.100', startTime: now - 5 * 3600 * 1000,
+      endTime: now - 4 * 3600 * 1000, active: false, terminateCause: 'quota' },
+    { sessionId: 'sure', username: 'b', ip: '192.168.20.101', startTime: now - 5 * 3600 * 1000,
+      endTime: null, active: true },
+  ];
+
+  db.expireStaleSessions(7200 * 1000);
+
+  assert.strictEqual(db.data.radacct[0].terminateCause, 'quota', 'kota sebebi korunmali');
+  assert.strictEqual(db.data.radacct[1].terminateCause, 'timeout');
+});

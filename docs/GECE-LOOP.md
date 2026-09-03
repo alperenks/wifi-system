@@ -148,7 +148,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   dışa aktarıp (soket kodunu değiştirmeden) gerçek örnek satırlarla sına: eksik alan,
   bozuk satır, IPv6, bilinmeyen biçim → çökmemeli. Kabul: `npm test` yeşil, log biçimi
   DEĞİŞMEDEN.
-- `[ ]` **G2 — Süresi dolan oturumları kapatan temizleyici.** `Session-Timeout` (7200 sn)
+- `[x]` **G2 — Süresi dolan oturumları kapatan temizleyici.** `Session-Timeout` (7200 sn)
   dolduğu hâlde oturumlar `active` kalıyor; panelde 20+ "aktif" misafir birikiyor.
   Sahada bunu NAS yapar, simülasyonda kimse yapmıyor. Periyodik bir görev
   `startTime + timeout < now` olan oturumları Accounting-Stop ile kapatsın.

@@ -303,6 +303,35 @@ class Database {
     return verifiedFlow ? verifiedFlow.phone : 'BILINMEYEN_TEL';
   }
 
+  // --- G2: Süresi dolan oturumların kapatılması ---
+  // Sahada bunu NAS yapar (Session-Timeout dolunca kullanıcıyı düşürür); ancak
+  // NAS çökerse veya simülasyonda kimse kapatmazsa oturum sonsuza dek "aktif"
+  // görünür — panel yanıltıcı olur ve 5651 kaydında bitiş zamanı hiç oluşmaz.
+  // Bitiş zamanı olarak "fark ettiğimiz an" değil, sürenin dolduğu an yazılır:
+  // savunulabilir sınır budur.
+  expireStaleSessions(maxAgeMs) {
+    if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0) return 0;
+    const now = Date.now();
+    let kapatilan = 0;
+
+    for (const sess of this.data.radacct) {
+      if (!sess.active) continue;
+      const sonAn = sess.startTime + maxAgeMs;
+      if (sonAn > now) continue;
+
+      sess.active = false;
+      sess.endTime = sonAn;
+      sess.terminateCause = 'timeout';
+      kapatilan++;
+    }
+
+    if (kapatilan > 0) {
+      this.save();
+      console.log(`[SESSION] ${kapatilan} oturum Session-Timeout doldugu icin kapatildi.`);
+    }
+    return kapatilan;
+  }
+
   // --- F-07: Veri saklama temizliği ---
   // Süresi geçmiş doğrulanmamış akışları ve saklama süresini aşan oturumları siler.
   purgeExpired() {

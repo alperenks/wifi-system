@@ -615,6 +615,15 @@ function onListening(scheme) {
 
   // F-07: başlangıçta bir kez saklama temizliği (süresi geçmiş kayıt/loglar)
   try { db.purgeExpired(); purgeOldLogs(); } catch (e) { console.warn('[RETENTION] baslangic temizligi hata:', e.message); }
+
+  // G2: Session-Timeout dolan oturumları kapat — başlangıçta bir kez, sonra
+  // dakikada bir. Aksi hâlde panelde hiç bitmeyen "aktif" oturumlar birikiyor.
+  const oturumOmruMs = config.session.timeoutSeconds * 1000;
+  try { db.expireStaleSessions(oturumOmruMs); } catch (e) { console.warn('[SESSION] baslangic temizligi hata:', e.message); }
+  const oturumTemizleyici = setInterval(() => {
+    try { db.expireStaleSessions(oturumOmruMs); } catch (e) { console.warn('[SESSION] temizlik hata:', e.message); }
+  }, 60 * 1000);
+  if (typeof oturumTemizleyici.unref === 'function') oturumTemizleyici.unref();
 }
 
 // F-05: TLS açıksa HTTPS ile dinle (varsayılan kapalı — SIM demosu HTTP ile çalışır).

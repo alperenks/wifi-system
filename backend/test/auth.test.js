@@ -114,9 +114,11 @@ test('kurcalanmis imza reddedilir', () => {
   const token = auth.issueToken('admin');
   const [payload, sig] = token.split('.');
 
-  // İmzanın son karakterini değiştir (aynı uzunluk, farklı bayt).
-  const son = sig.slice(-1);
-  const bozukSig = sig.slice(0, -1) + (son === 'A' ? 'B' : 'A');
+  // İmzanın İLK karakterini değiştir (aynı uzunluk, farklı bayt).
+  // Son karakter kullanılmaz: base64url'de son karakterin alt bitleri çözümde
+  // yok sayılır, bu yüzden onu değiştirmek imzayı değiştirmeyebilir (kırılgan test).
+  const ilk = sig.slice(0, 1);
+  const bozukSig = (ilk === 'A' ? 'B' : 'A') + sig.slice(1);
 
   assert.strictEqual(auth.verifyToken(`${payload}.${bozukSig}`), null);
 });
