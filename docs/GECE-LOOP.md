@@ -163,7 +163,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 - `[x]` **G5 — Uç nokta (HTTP) testleri.** `server.js` `app`'i dışa aktarsın (dinlemeyi
   `require.main` altına al), testler `node:http` ile gerçek istek atsın: 401/400/200
   yolları. Ek bağımlılık YOK. Kabul: `npm test` içinde uç nokta testleri de koşuyor.
-- `[ ]` **G6 — `netgsm.js` birim testleri.** SIM_MODE'da sahte OTP dönüşü, gerçek modda
+- `[x]` **G6 — `netgsm.js` birim testleri.** SIM_MODE'da sahte OTP dönüşü, gerçek modda
   istek gövdesinin doğru kurulması (ağa çıkmadan, `axios` sahtelenerek). Kabul: yeşil.
 
 ---

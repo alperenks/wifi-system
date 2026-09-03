@@ -106,4 +106,6 @@ async function sendOtpSms(phone, otp) {
   }
 }
 
-module.exports = { sendOtpSms };
+// buildOtpXml/interpretResponse birim testleri için de dışa aktarılır (G6);
+// dışarıdan çağıran üretim kodu yalnızca sendOtpSms kullanır.
+module.exports = { sendOtpSms, buildOtpXml, interpretResponse, OTP_ENDPOINT };
