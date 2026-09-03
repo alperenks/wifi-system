@@ -17,6 +17,9 @@
 
 const crypto = require('crypto');
 const config = require('./config');
+const radiusClient = require('./radius-client');
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 const BASE = `http://localhost:${config.PORT}`;
 const line = (c = '─', n = 66) => c.repeat(n);
@@ -149,6 +152,75 @@ async function a5() {
   }
 }
 
+// --- A8: Veri kotasını aşıp sınırsız kullanmaya devam etme (F-10) -----------
+// Kota açıkken, eşiği aşan bir oturumun GERÇEKTEN kapatıldığını doğrular.
+// Kota kapalıysa (QUOTA_MB=0, varsayılan) senaryo atlanır.
+async function a8() {
+  // Kota ayarını SUNUCUDAN sor — betiğin kendi .env'i sunucununkiyle aynı olmayabilir.
+  const cfg = await req('/api/config');
+  const kotaMb = cfg.json && Number(cfg.json.quotaMb);
+  if (!kotaMb || kotaMb <= 0) {
+    return record('A8', 'Veri kotasi asimi', 'INFO',
+      'Sunucuda kota kapali (QUOTA_MB=0) — senaryo atlandi. Denemek icin: QUOTA_MB=2 node server.js');
+  }
+
+  // Oturum durumunu okuyabilmek için yönetici girişi (SIM demosu varsayılanı).
+  const parola = config.admin.devPasswordPlain;
+  if (!parola) {
+    return record('A8', 'Veri kotasi asimi', 'INFO',
+      'Yonetici parolasi bilinmiyor (ADMIN_PASSWORD_HASH ayarli) — senaryo atlandi.');
+  }
+  const giris = await req('/api/auth/login', { method: 'POST', body: { user: config.admin.user, password: parola } });
+  if (giris.status === 429) {
+    // F6: Onceki kosunun A7 kaba kuvvet denemeleri limiti doldurmus olabilir.
+    return record('A8', 'Veri kotasi asimi', 'INFO',
+      'Yonetici giris limiti dolu (onceki A7 kosusundan kalan basarisiz denemeler). ' +
+      'Sunucuyu yeniden baslatip tekrar calistirin — limit bellekte tutulur.');
+  }
+  if (giris.status !== 200) {
+    return record('A8', 'Veri kotasi asimi', 'INFO',
+      `Yonetici girisi yapilamadi (${giris.status}) — senaryo atlandi.`);
+  }
+  const cookie = (giris.headers.get('set-cookie') || '').split(';')[0];
+
+  // 1) Sanal misafir bağlanır (gerçek RADIUS oturumu açılır)
+  const misafir = await req('/api/sim/full-guest', { method: 'POST', body: {}, cookie });
+  if (misafir.status !== 200 || !misafir.json || !misafir.json.success) {
+    return record('A8', 'Veri kotasi asimi', 'INFO',
+      `Sanal misafir olusturulamadi (${misafir.status}) — senaryo atlandi.`);
+  }
+  const { mac, ip, sessionId } = misafir.json;
+
+  // 2) Saldırı: kotanın çok üstünde veri harcandığını bildir ve kullanmaya devam et
+  const asiriBayt = Math.ceil(kotaMb * 1024 * 1024 * 1.5);
+  try {
+    await radiusClient.accountingUpdate(mac, sessionId, asiriBayt, asiriBayt);
+  } catch (e) {
+    return record('A8', 'Veri kotasi asimi', 'INFO', `Accounting paketi gonderilemedi: ${e.message}`);
+  }
+
+  // 3) Sunucu oturumu kapatmalı (CoA/Disconnect + accounting kaydı)
+  let oturum = null;
+  for (let i = 0; i < 15; i++) {
+    await sleep(200);
+    const r = await req('/api/dashboard/sessions', { cookie });
+    if (r.status === 200 && Array.isArray(r.json)) {
+      oturum = r.json.find(o => o.sessionId === sessionId);
+      if (oturum && !oturum.active) break;
+    }
+  }
+
+  if (!oturum) {
+    record('A8', 'Veri kotasi asimi', 'INFO', 'Oturum kaydi okunamadi — sonuc belirsiz.');
+  } else if (oturum.active) {
+    record('A8', 'Veri kotasi asimi', 'VULN',
+      `${(asiriBayt * 2 / 1048576).toFixed(1)} MB harcandi ama oturum HALA ACIK — kota uygulanmiyor.`);
+  } else {
+    record('A8', 'Veri kotasi asimi', 'BLOCKED',
+      `Kota (${kotaMb} MB) asilinca oturum kapatildi (sebep: ${oturum.terminateCause || 'bilinmiyor'}).`);
+  }
+}
+
 // --- A7: Yönetici girişi kaba kuvvet ----------------------------------------
 async function a7() {
   let ok = false, blockAt = null;
@@ -171,7 +243,7 @@ async function main() {
   console.log(`  Hedef: ${BASE}   Tarih: ${new Date().toLocaleString()}`);
   console.log(line('=') + '\n');
   try {
-    await a1(); await a2(); await a3(); await a4(); await a5(); await a7();
+    await a1(); await a2(); await a3(); await a4(); await a5(); await a8(); await a7();
   } catch (e) {
     console.error('\n  Test surucusu hata verdi (sunucu calisiyor mu?):', e.message);
     process.exit(2);
