@@ -123,11 +123,17 @@ npm run verify-chain    # 5651 imza zincirini doğrular; silme/kurcalama tespit 
 npm run test:esp32      # ESP32 yetkilendirme protokolünü (imza/replay/stale) sınar
 ```
 
-> **`npm run attack` iki kez üst üste çalıştırılırsa:** A7 senaryosu bilerek 5 kez
-> yanlış parola dener ve yönetici giriş limitini (15 dk / 5 **başarısız** deneme)
-> doldurur. Bu yüzden ikinci koşuda giriş gerektiren A8 senaryosu "BILGI" ile atlanır.
-> Limit bellekte tutulduğu için çözüm basit: **sunucuyu yeniden başlatın.** Başarılı
-> girişler sayaca yazılmaz, yani normal kullanım kendini kilitlemez.
+> **`npm run attack` sonrası giriş limiti:** A7 senaryosu bilerek 5 kez yanlış parola
+> dener ve yönetici giriş limitini (15 dk / 5 **başarısız** deneme) doldurur. Bu yüzden
+> hemen ardından `npm run simulate` veya panel girişi 429 alır; betik koşu sonunda bunu
+> hatırlatır. İki çözüm: **sunucuyu yeniden başlatın** (limit bellekte tutulur) veya
+> limiti hiç doldurmamak için:
+>
+> ```bash
+> npm run attack -- --skip-a7
+> ```
+>
+> Başarılı girişler sayaca yazılmaz, yani normal kullanım kendini kilitlemez.
 >
 > A8 (veri kotası) senaryosu yalnızca sunucuda kota açıkken çalışır:
 > `QUOTA_MB=2 node server.js` ile başlatıp `npm run attack` çalıştırın.

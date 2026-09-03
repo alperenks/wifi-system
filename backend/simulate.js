@@ -34,6 +34,13 @@ async function login() {
       password: process.env.ADMIN_PASSWORD || 'admin123',
     }),
   });
+  if (res.status === 429) {
+    // H3: En sık sebep budur — `npm run attack` A7 senaryosu 5 kez yanlış parola
+    // deneyip giriş limitini doldurur; limit BELLEKTE tutulduğu için sunucuyu
+    // yeniden başlatmak sorunu anında çözer.
+    throw new Error('Yönetici giriş limiti dolu (15 dk). Büyük ihtimalle az önce "npm run attack" çalıştı; '
+      + 'limit bellekte tutulur — sunucuyu yeniden başlatıp tekrar deneyin.');
+  }
   if (!res.ok) {
     throw new Error('Yönetici girişi başarısız — .env ADMIN_USER/ADMIN_PASSWORD kontrol edin (SIM varsayılanı admin/admin123).');
   }
@@ -63,11 +70,13 @@ async function main() {
     const cfg = await (await fetch(BASE + '/api/config')).json();
     if (!cfg.simMode) {
       console.error('⚠  Sunucu SIM_MODE=false ile çalışıyor. Simülasyon uçları kapalı. .env içinde SIM_MODE=true yapın.');
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
   } catch (e) {
     console.error(`✖  Sunucuya ulaşılamadı (${BASE}). Önce "npm start" ile sunucuyu başlatın.`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // Yönetici girişi (sim uçları korumalı)
@@ -76,7 +85,8 @@ async function main() {
     console.log('▶  Yönetici oturumu açıldı (simülasyon uçlarına erişim için).\n');
   } catch (e) {
     console.error(`✖  ${e.message}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const guests = [];
@@ -125,4 +135,8 @@ async function main() {
   console.log(line('=') + '\n');
 }
 
-main().catch((e) => { console.error('Simülasyon hatası:', e); process.exit(1); });
+// H2: process.exit() yerine exitCode — Windows'ta bekleyen fetch keep-alive
+// soketleri varken zorla çıkmak libuv'u düşürüyor ("Assertion failed:
+// !(handle->flags & UV_HANDLE_CLOSING)") ve gerçek hata mesajı kayboluyor.
+// Aynı yaklaşım esp32-hw-test.js'te de kullanılıyor.
+main().catch((e) => { console.error('Simülasyon hatası:', e); process.exitCode = 1; });

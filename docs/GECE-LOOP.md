@@ -178,12 +178,12 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   Önerilen: `retention.sessionDays`'i aşan doğrulanmış akışları da sil (ilgili oturum
   kaydı zaten aynı eşikte siliniyor). Kabul: eski akışlar temizleniyor, 5651 log
   dosyaları etkilenmiyor, `npm test` yeşil.
-- `[ ]` **H2 — `simulate.js` hata yolunda Windows'ta libuv çökmesi.** Sunucuya giriş
+- `[x]` **H2 — `simulate.js` hata yolunda Windows'ta libuv çökmesi.** Sunucuya giriş
   yapılamayınca `process.exit(1)` çağrılıyor ve Node
   `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` ile düşüyor — hata mesajı
   kayboluyor. Düzeltme: `process.exit()` yerine `process.exitCode = 1; return;`.
   Kabul: giriş başarısızken düzgün mesaj görünüyor, çökme yok.
-- `[ ]` **H3 — `npm run attack` sonrası simulate/panel 15 dk kilitli.** A7 bilerek 5 kez
+- `[x]` **H3 — `npm run attack` sonrası simulate/panel 15 dk kilitli.** A7 bilerek 5 kez
   yanlış parola deniyor; sonrasında `npm run simulate` "Yönetici girişi başarısız"
   diyor (bu tur bir kez buna takıldı). README'de yazılı ama betik bunu kendisi
   söylemeli: attack sonunda "NOT: giriş limiti doldu, simulate için sunucuyu yeniden

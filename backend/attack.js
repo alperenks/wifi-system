@@ -22,6 +22,10 @@ const radiusClient = require('./radius-client');
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 const BASE = `http://localhost:${config.PORT}`;
+
+// H3: A7 (giris kaba kuvveti) 5 yanlis parola deneyip giris limitini doldurur;
+// sonrasinda simulate/panel 15 dk giris yapamaz. --skip-a7 ile atlanabilir.
+const SKIP_A7 = process.argv.includes('--skip-a7');
 const line = (c = '─', n = 66) => c.repeat(n);
 
 let passVuln = 0;   // açık hâlâ açık (kötü)
@@ -243,20 +247,34 @@ async function main() {
   console.log(`  Hedef: ${BASE}   Tarih: ${new Date().toLocaleString()}`);
   console.log(line('=') + '\n');
   try {
-    await a1(); await a2(); await a3(); await a4(); await a5(); await a8(); await a7();
+    await a1(); await a2(); await a3(); await a4(); await a5(); await a8();
+    if (SKIP_A7) {
+      record('A7', 'Yonetici girisi kaba kuvvet', 'INFO', '--skip-a7 verildi, senaryo atlandi.');
+    } else {
+      await a7();
+    }
   } catch (e) {
     console.error('\n  Test surucusu hata verdi (sunucu calisiyor mu?):', e.message);
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
   console.log('\n' + line('─'));
   console.log(`  OZET:  ${blocked} engellendi   ${passVuln} acik hala mevcut`);
   console.log(line('─'));
+  if (!SKIP_A7) {
+    console.log('  NOT: A7 senaryosu yonetici giris limitini doldurdu. Simdi "npm run simulate"');
+    console.log('       veya panel girisi 15 dk 429 alir — sunucuyu yeniden baslatin ya da');
+    console.log('       bir dahaki sefere "npm run attack -- --skip-a7" kullanin.\n');
+  }
+
+  // H2: exit yerine exitCode — bekleyen keep-alive soketleriyle zorla cikmak
+  // Windows'ta libuv'u dusuruyor ve ozet ciktisi kayboluyor.
   if (passVuln > 0) {
     console.log('  ! Acik(lar) mevcut — duzeltme oncesi bekleniyor.\n');
-    process.exit(1);
+    process.exitCode = 1;
   } else {
     console.log('  + Tum saldirilar engellendi.\n');
-    process.exit(0);
+    process.exitCode = 0;
   }
 }
 
