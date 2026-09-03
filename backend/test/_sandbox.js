@@ -28,6 +28,7 @@ const real = {
   readdirSync: fs.readdirSync,
   unlinkSync: fs.unlinkSync,
   mkdirSync: fs.mkdirSync,
+  renameSync: fs.renameSync,
   rmSync: fs.rmSync,
 };
 
@@ -81,6 +82,19 @@ function patch() {
     return real.existsSync.call(fs, remap(p));
   };
 
+  // Atomik yazma (yaz + rename) kum havuzunda da çalışmalı: kaynak bellekteyse
+  // hedef de belleğe alınır — gerçek db.json'a ASLA dokunulmaz.
+  fs.renameSync = function (src, dst, ...rest) {
+    const srcKey = memKey(src);
+    if (srcKey !== null) {
+      const icerik = files.get(srcKey);
+      files.set(path.resolve(dst), icerik);
+      files.set(srcKey, '');        // kaynak boşalır ama kayıtlı kalır
+      return;
+    }
+    return real.renameSync.call(fs, remap(src), remap(dst), ...rest);
+  };
+
   fs.readdirSync = function (p, ...rest) { return real.readdirSync.call(fs, remap(p), ...rest); };
   fs.unlinkSync = function (p, ...rest) { return real.unlinkSync.call(fs, remap(p), ...rest); };
   fs.mkdirSync = function (p, ...rest) { return real.mkdirSync.call(fs, remap(p), ...rest); };
@@ -95,10 +109,15 @@ function patch() {
 function sandboxJsonFile(absPath, initial = {}) {
   const abs = path.resolve(absPath);
   files.set(abs, JSON.stringify(initial));
+  files.set(abs + '.tmp', '');   // atomik yazmanın geçici dosyası da bellekte kalsın
   patch();
   return {
     read: () => JSON.parse(files.get(abs)),
     write: (obj) => files.set(abs, JSON.stringify(obj)),
+    // Ham erişim — atomik yazma / bozuk dosya senaryolarını test edebilmek için.
+    rawGet: (p = abs) => files.get(path.resolve(p)),
+    rawSet: (icerik, p = abs) => files.set(path.resolve(p), icerik),
+    rawKeys: () => [...files.keys()],
   };
 }
 

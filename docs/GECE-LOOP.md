@@ -120,7 +120,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 ### F. Sonraki tur adayları (loop'un 1. turda not ettikleri — öncelik Alperen'in)
 > Bunlar backlog'daki işler yapılırken ortaya çıkan, gerçek gözleme dayanan maddelerdir.
 
-- `[ ]` **F1 — `db.json` atomik yazma.** `save()` şu an doğrudan üstüne yazıyor; yazma
+- `[x]` **F1 — `db.json` atomik yazma.** `save()` şu an doğrudan üstüne yazıyor; yazma
   sırasında kesinti olursa dosya yarım kalır ve `load()` sessizce BOŞ veritabanına
   döner (delil kaybı). Çözüm: geçici dosyaya yaz + `rename`. Kabul: yarım dosya
   simülasyonunda eski veri korunuyor; `npm test` yeşil.

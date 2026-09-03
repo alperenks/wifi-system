@@ -14,7 +14,8 @@ const path = require('path');
 const { sandboxJsonFile } = require('./_sandbox');
 
 // 1) db.json'u kum havuzuna al — db.js yüklenirken bunu okuyacak.
-sandboxJsonFile(path.join(__dirname, '..', 'db.json'), {
+const DB_JSON = path.join(__dirname, '..', 'db.json');
+const dbFile = sandboxJsonFile(DB_JSON, {
   guestFlows: [], radcheck: {}, radreply: {}, radacct: [], leases: {},
 });
 
@@ -260,4 +261,49 @@ test('purgeExpired silinecek kayit yoksa 0 doner', () => {
   db.data.guestFlows = [];
   db.data.radacct = [];
   assert.strictEqual(db.purgeExpired(), 0);
+});
+
+// --- F1: Atomik yazma ve bozuk dosya koruması --------------------------------
+
+test('save() once gecici dosyaya yazip yerine tasir (atomik)', () => {
+  db.createGuestFlow('AA:BB:CC:DD:EE:20', '5551234567', '123456');
+  db.save();
+
+  // Geçici dosya arkada bırakılmamalı.
+  assert.strictEqual(dbFile.rawGet(DB_JSON + '.tmp'), '', 'gecici dosya bosaltilmis olmali');
+
+  // Asıl dosya geçerli JSON ve güncel veriyi içermeli.
+  const kaydedilen = JSON.parse(dbFile.rawGet());
+  assert.strictEqual(kaydedilen.guestFlows.at(-1).mac, 'aabbccddee20');
+});
+
+test("yarim kalmis yazma db.json dosyasini bozamaz (rename ile yer degistirme)", () => {
+  db.createGuestFlow('AA:BB:CC:DD:EE:21', '5551234567', '123456');
+  db.save();
+  const saglamIcerik = dbFile.rawGet();
+
+  // Yazma sırasında süreç ölmüş gibi: geçici dosya yarım, asıl dosya el değmemiş.
+  dbFile.rawSet('{"guestFlows": [ YARIM', DB_JSON + '.tmp');
+
+  assert.strictEqual(dbFile.rawGet(), saglamIcerik, 'asil dosya bozulmamali');
+  assert.doesNotThrow(() => JSON.parse(dbFile.rawGet()));
+});
+
+test('bozuk db.json UZERINE YAZILMAZ, kenara alinir (delil kaybi olmaz)', () => {
+  const bozukIcerik = '{"guestFlows": [{"id":"kurtarilacak-kayit"';
+  dbFile.rawSet(bozukIcerik);
+
+  const oncekiBozukSayisi = dbFile.rawKeys().filter(k => k.includes('.bozuk-')).length;
+  db.load();   // parse patlamali -> karantina
+  const bozukDosyalar = dbFile.rawKeys().filter(k => k.includes('.bozuk-'));
+
+  assert.strictEqual(bozukDosyalar.length, oncekiBozukSayisi + 1, 'bozuk dosya kenara alinmali');
+  assert.strictEqual(dbFile.rawGet(bozukDosyalar.at(-1)), bozukIcerik,
+    'kenara alinan dosya orijinal icerigi korumali');
+
+  // Sonraki yazma temiz bir db.json uretir; karantinadaki dosyaya dokunmaz.
+  db.data.guestFlows = [];
+  db.save();
+  assert.doesNotThrow(() => JSON.parse(dbFile.rawGet()));
+  assert.strictEqual(dbFile.rawGet(bozukDosyalar.at(-1)), bozukIcerik);
 });

@@ -10,6 +10,9 @@ backend/.env
 
 # Çalışma zamanı veritabanı — gerçek telefon numaraları içerebilir (KVKK)
 backend/db.json
+# Atomik yazmanın geçici dosyası ve karantinaya alınmış bozuk kopyalar
+backend/db.json.tmp
+backend/db.json.bozuk-*
 
 # 5651 log dosyaları — kişisel veri
 backend/logs/

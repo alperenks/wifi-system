@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const config = require('./config');
 
 const DB_PATH = path.join(__dirname, 'db.json');
+const DB_TMP_PATH = DB_PATH + '.tmp';   // F1: atomik yazma için geçici dosya
 
 // OTP'yi flow'a özgü salt ile hash'ler (F-06: düz metin saklama yok).
 function hashOtp(salt, otp) {
@@ -32,18 +33,39 @@ class Database {
   }
 
   load() {
+    if (!fs.existsSync(DB_PATH)) {
+      this.save();
+      return;
+    }
+
+    let fileContent;
     try {
-      if (fs.existsSync(DB_PATH)) {
-        const fileContent = fs.readFileSync(DB_PATH, 'utf8');
-        const parsed = JSON.parse(fileContent);
-        this.data = Object.assign({
-          guestFlows: [], radcheck: {}, radreply: {}, radacct: [], leases: {}
-        }, parsed);
-      } else {
-        this.save();
-      }
+      fileContent = fs.readFileSync(DB_PATH, 'utf8');
+      const parsed = JSON.parse(fileContent);
+      this.data = Object.assign({
+        guestFlows: [], radcheck: {}, radreply: {}, radacct: [], leases: {}
+      }, parsed);
+      return;
     } catch (err) {
-      console.error('Failed to load database, using memory defaults:', err);
+      // F1: Okunamayan veritabanının ÜSTÜNE YAZMAYIZ. Eskiden burada boş
+      // varsayılanlara dönülüyordu; ilk save() ile bozuk dosya kalıcı olarak
+      // siliniyor ve o ana kadarki oturum kayıtları (5651 delili) kayboluyordu.
+      // Artık dosya kenara alınır: veri kurtarılabilir kalır.
+      console.error('[DB] Veritabani okunamadi/bozuk:', err.message);
+      this.quarantineCorruptFile();
+    }
+  }
+
+  // Bozuk db.json'u zaman damgalı bir ada taşır ve boş durumla devam eder.
+  quarantineCorruptFile() {
+    const damga = new Date().toISOString().replace(/[:.]/g, '-');
+    const hedef = `${DB_PATH}.bozuk-${damga}`;
+    try {
+      fs.renameSync(DB_PATH, hedef);
+      console.error(`[DB] Bozuk dosya kenara alindi: ${path.basename(hedef)}`);
+      console.error('[DB] Bos veritabani ile devam ediliyor — kayitlari o dosyadan kurtarabilirsiniz.');
+    } catch (renameErr) {
+      console.error('[DB] Bozuk dosya tasinamadi:', renameErr.message);
     }
   }
 
@@ -73,9 +95,14 @@ class Database {
     return entry ? entry[0] : null;
   }
 
+  // F1: Atomik yazma. Önce geçici dosyaya yazıp sonra yerine taşırız; böylece
+  // yazma sırasında süreç ölse bile db.json ya eski ya yeni hâliyle bulunur,
+  // ASLA yarım kalmaz. (Yarım dosya = bir sonraki açılışta parse hatası =
+  // 5651 oturum kayıtlarının kaybı.)
   save() {
     try {
-      fs.writeFileSync(DB_PATH, JSON.stringify(this.data, null, 2), 'utf8');
+      fs.writeFileSync(DB_TMP_PATH, JSON.stringify(this.data, null, 2), 'utf8');
+      fs.renameSync(DB_TMP_PATH, DB_PATH);   // aynı dosya sisteminde atomik
     } catch (err) {
       console.error('Failed to save database to disk:', err);
     }
