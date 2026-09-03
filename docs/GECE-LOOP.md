@@ -143,7 +143,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 
 ### G. Sonraki tur adayları (loop'un 2. turda not ettikleri)
 
-- `[ ]` **G1 — `syslog-server.js` birim testleri.** pfSense `filterlog` ve `unbound`
+- `[x]` **G1 — `syslog-server.js` birim testleri.** pfSense `filterlog` ve `unbound`
   satırlarını ayrıştıran mantık 5651 delilinin kaynağı ama hiç testi yok. Ayrıştırıcıyı
   dışa aktarıp (soket kodunu değiştirmeden) gerçek örnek satırlarla sına: eksik alan,
   bozuk satır, IPv6, bilinmeyen biçim → çökmemeli. Kabul: `npm test` yeşil, log biçimi

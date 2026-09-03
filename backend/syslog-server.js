@@ -32,11 +32,17 @@ function startSyslogServer() {
 }
 
 /**
- * Parses pfSense/MikroTik DNS or NAT filter logs, extracts fields, and records them in 5651 format.
+ * Parses pfSense/MikroTik DNS or NAT filter logs and returns a 5651 log record
+ * (or null when the line is not something we must record).
+ *
+ * SAF FONKSIYON: diske yazmaz. Yazma isi writeTo5651Log'da; bu ayrim sayesinde
+ * ayristirici gercek log dosyalarina dokunmadan birim testlerle sinanabilir (G1).
  */
-function parseAndSaveLog(rawMessage, senderIp) {
+function parseSyslogLine(rawMessage) {
   const now = new Date();
   let logRecord = null;
+
+  if (typeof rawMessage !== 'string' || rawMessage.length === 0) return null;
 
   // --- 1. pfSense Unbound DNS Log Parser ---
   // Example: <13>Jul  2 05:32:10 unbound[90243]: info: 192.168.20.15 www.google.com. A IN
@@ -167,7 +173,12 @@ function parseAndSaveLog(rawMessage, senderIp) {
     }
   }
 
-  // Write record if parsing was successful
+  return logRecord;
+}
+
+/** Ayristir + yaz. Soket katmaninin kullandigi sarmalayici. */
+function parseAndSaveLog(rawMessage, senderIp) {
+  const logRecord = parseSyslogLine(rawMessage);
   if (logRecord) {
     writeTo5651Log(logRecord);
   }
@@ -178,13 +189,23 @@ function extractParam(str, param) {
   return match ? match[1] : null;
 }
 
+/**
+ * 5651 log satirini uretir.
+ *
+ * DIKKAT: Bu bicim YASAL DELIL bicimidir - alan sirasi/ayirici DEGISTIRILEMEZ.
+ * (test/syslog-server.test.js bicimi birebir dogrular; kirilirsa degisiklik
+ * kasitli degildir.)
+ *   TimeStamp | LogType | MAC | Local IP | Src Port | Dest IP | Dest Port | Phone | Details
+ */
+function buildLogLine(record) {
+  return `${record.timestamp} | ${record.type} | ${record.mac} | ${record.localIp} | ${record.srcPort || 'N/A'} | ${record.destIp} | ${record.destPort} | ${record.phone} | ${record.details}\n`;
+}
+
 function writeTo5651Log(record) {
   const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const filePath = path.join(LOGS_DIR, `${dateStr}.log`);
 
-  // Standardized 5651 Log format line
-  // TimeStamp | LogType | MAC Address | Local IP | Src Port | Dest IP | Dest Port | Phone Number | Details
-  const logLine = `${record.timestamp} | ${record.type} | ${record.mac} | ${record.localIp} | ${record.srcPort || 'N/A'} | ${record.destIp} | ${record.destPort} | ${record.phone} | ${record.details}\n`;
+  const logLine = buildLogLine(record);
 
   fs.appendFile(filePath, logLine, 'utf8', (err) => {
     if (err) {
@@ -195,4 +216,4 @@ function writeTo5651Log(record) {
   });
 }
 
-module.exports = { startSyslogServer };
+module.exports = { startSyslogServer, parseSyslogLine, buildLogLine, LOGS_DIR };
