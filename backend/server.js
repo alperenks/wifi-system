@@ -10,7 +10,7 @@ const db = require('./db');
 const netgsm = require('./netgsm');
 const radiusClient = require('./radius-client');
 const auth = require('./auth');
-const { validateBody } = require('./validate');
+const { validateBody, normalizePhone } = require('./validate');
 const { apiNotFound, makeErrorHandler, wrapAsync } = require('./errors');
 const { startRadiusServer } = require('./radius-server');
 const { startSyslogServer } = require('./syslog-server');
@@ -101,10 +101,13 @@ const loginLimiter = rateLimit({
 // Telefon numarası biçim doğrulaması — limiter'lardan ÖNCE çalışır ki geçersiz
 // numara için anahtar üretilmesin (5XXXXXXXXX, başında 0 yok).
 function validatePhone(req, res, next) {
-  const phone = digitsOnly(req.body && req.body.phone);
-  if (!/^5[0-9]{9}$/.test(phone)) {
+  const phone = normalizePhone(req.body && req.body.phone);
+  if (!phone) {
     return res.status(400).json({ message: 'Telefon numarası başında 0 olmadan 5XXXXXXXXX formatında olmalıdır.' });
   }
+  // Kanonik değeri gövdeye GERİ YAZ: bundan sonrasında (db, 5651 logu, NetGSM,
+  // adli arama) hep aynı 10 haneli biçim dolaşır. Ham kullanıcı metni asla saklanmaz.
+  req.body.phone = phone;
   next();
 }
 
@@ -430,8 +433,8 @@ app.post('/api/sim/browse', auth.requireAuth,
   }
 
   // Simulate traffic accounting growth for the active session
-  // I1: ayni IP'de birden fazla aktif oturum olabilir — en guncelini hedefle.
-  const session = [...db.data.radacct].reverse().find(s => s.ip === ip && s.active);
+  // Aynı IP'de birden fazla aktif oturum olabilir — en güncelini hedefle (db.js).
+  const session = db.activeSessionByIp(ip);
   if (session) {
     const inc = 1024 * 1024 * count; // ~1MB per visit
     try {
@@ -451,7 +454,9 @@ app.post('/api/sim/disconnect', auth.requireAuth,
   }),
   wrapAsync(async (req, res) => {
   const { ip, mac } = req.body;
-  const session = [...db.data.radacct].reverse().find(s => s.active && (s.ip === ip || s.username === (mac || '').toLowerCase().replace(/[^a-f0-9]/g, '')));
+  const temizMac = (mac || '').toLowerCase().replace(/[^a-f0-9]/g, '');
+  const session = db.activeSessionByIp(ip)
+    || [...db.data.radacct].reverse().find(s => s.active && s.username === temizMac);
   if (!session) return res.status(404).json({ message: 'Aktif oturum bulunamadı.' });
   try {
     await radiusClient.accountingStop(session.username, session.sessionId,
@@ -737,8 +742,25 @@ function start() {
   return app.listen(PORT, () => onListening('http'));
 }
 
+// Düzgün kapanış: bekleyen db yazmasını diske indir, HTTP sunucusunu kapat,
+// sonra çık. Sinyalleri burada yakalıyoruz çünkü soketlerin sahibi burası.
+function shutdown(sinyal, httpServer) {
+  console.log(`
+[KAPANIS] ${sinyal} alindi — bekleyen yazma bosaltiliyor, sunucu kapatiliyor...`);
+  try { db.flushIfPending(); } catch (e) { console.error('[KAPANIS] db flush hata:', e.message); }
+  const zorla = setTimeout(() => process.exit(0), 3000);   // takılırsa 3 sn sonra çık
+  if (typeof zorla.unref === 'function') zorla.unref();
+  if (httpServer) httpServer.close(() => process.exit(0));
+  else process.exit(0);
+}
+
 // G5: `node server.js` ile çalıştırıldığında dinlemeye başlar; `require` edildiğinde
 // (uç nokta testleri) yalnızca `app` verilir — RADIUS/Syslog/cron kaldırılmaz.
-if (require.main === module) start();
+if (require.main === module) {
+  const httpServer = start();
+  for (const sinyal of ['SIGINT', 'SIGTERM']) {
+    process.on(sinyal, () => shutdown(sinyal, httpServer));
+  }
+}
 
 module.exports = { app, start };

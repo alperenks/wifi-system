@@ -277,3 +277,35 @@ test('ayristirilan kayit dogrudan log satirina cevrilebilir (uctan uca)', () => 
   assert.strictEqual(alanlar[2], 'aabbccddee09');
   assert.strictEqual(alanlar[7], '5551112233');
 });
+
+// --- Log satırı bütünlüğü (savunma derinliği) --------------------------------
+
+test('alan icindeki satir sonu ve ayrac log satirini BOLEMEZ', () => {
+  const satir = buildLogLine({
+    timestamp: '2026-09-03T21:00:00.000Z',
+    type: 'NAT',
+    mac: 'aabbccddee01',
+    localIp: '192.168.20.15',
+    srcPort: 51000,
+    destIp: '1.2.3.4',
+    destPort: 443,
+    phone: '5551112233\nSAHTE | NAT | aa',      // enjeksiyon denemesi
+    details: 'Proto: TCP',
+  });
+
+  assert.strictEqual(satir.trimEnd().split('\n').length, 1, 'tek satir kalmali');
+  assert.strictEqual(satir.trimEnd().split(' | ').length, 9, '9 alan korunmali');
+  assert.ok(!satir.trimEnd().slice(0, -1).includes('\n'));
+});
+
+test('ayristirilan kayit ile IP->telefon cozumlemesi ayni oturumu gosterir', () => {
+  const IP = '192.168.20.100';
+  // Havuz doldu senaryosu: iki misafir ayni IP'de aktif
+  misafirKur('aa:00:00:00:00:01', IP, '5551110001');
+  misafirKur('aa:00:00:00:00:02', IP, '5552220002');
+
+  const kayit = parseSyslogLine(FILTERLOG_PASS.replace('192.168.20.15,', IP + ','));
+
+  assert.strictEqual(kayit.mac, 'aa0000000002', "en son oturumun MAC adresi");
+  assert.strictEqual(kayit.phone, '5552220002', 'AYNI oturumun telefonu');
+});

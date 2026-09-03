@@ -479,3 +479,50 @@ test('ayni IP birden fazla aktif oturumda ise EN SON oturumun telefonu doner', (
 
   assert.strictEqual(db.getPhoneByIp(ip), '5552220002', 'en son oturumun telefonu esas alinmali');
 });
+
+// --- Kimlik çözümlemenin tutarlılığı (güvenlik/kod incelemesi bulgusu) --------
+
+test("ayni IP'de iki aktif oturum varsa MAC ve TELEFON ayni misafire ait olur", () => {
+  const IP = '192.168.20.100';
+
+  for (const [mac, tel] of [['aa0000000001', '5551110001'], ['aa0000000002', '5552220002']]) {
+    db.data.guestFlows.push({ id: mac, mac, phone: tel, verified: true, verifiedAt: Date.now(), expiresAt: Date.now() + 60000 });
+    db.data.leases[mac] = IP;
+    db.data.radacct.push({ sessionId: 's-' + mac, username: mac, ip: IP, startTime: Date.now(), endTime: null, active: true });
+  }
+
+  // Iki yarim ayni oturumu gormeli: aksi halde tek log satirinda iki kisi olur.
+  assert.strictEqual(db.macByIp(IP), 'aa0000000002', "en son oturumun MAC adresi");
+  assert.strictEqual(db.getPhoneByIp(IP), '5552220002', 'ayni oturumun telefonu');
+  assert.strictEqual(db.getPhoneByMac(db.macByIp(IP)), db.getPhoneByIp(IP),
+    'MAC uzerinden ve IP uzerinden ayni numara cikmali');
+});
+
+test('ayni MAC yeni numarayla dogrulanirsa GUNCEL numara doner', () => {
+  db.data.guestFlows.push(
+    { id: 'x1', mac: 'bb0000000001', phone: '5550000001', verified: true, verifiedAt: 1, expiresAt: 9e15 },
+    { id: 'x2', mac: 'bb0000000001', phone: '5559999999', verified: true, verifiedAt: 2, expiresAt: 9e15 },
+  );
+  db.data.radacct.push({ sessionId: 's2', username: 'bb0000000001', ip: '192.168.20.150',
+    startTime: Date.now(), endTime: null, active: true });
+
+  assert.strictEqual(db.getPhoneByIp('192.168.20.150'), '5559999999');
+  assert.strictEqual(db.getPhoneByMac('bb0000000001'), '5559999999');
+});
+
+test('aktif oturum yoksa MAC DHCP kirasindan cozulur', () => {
+  db.data.leases['cc0000000001'] = '192.168.20.160';
+  db.data.guestFlows.push({ id: 'y1', mac: 'cc0000000001', phone: '5557778899',
+    verified: true, verifiedAt: Date.now(), expiresAt: 9e15 });
+
+  assert.strictEqual(db.macByIp('192.168.20.160'), 'cc0000000001');
+  assert.strictEqual(db.getPhoneByIp('192.168.20.160'), '5557778899');
+  assert.strictEqual(db.macByIp('192.168.20.199'), null, 'bilinmeyen IP null');
+});
+
+test('db.js sureci kapatma sinyallerini GASP ETMEZ', () => {
+  // Veri modulu SIGINT/SIGTERM dinlememeli: soketlerin sahibi server.js.
+  assert.strictEqual(process.listenerCount('SIGINT'), 0, 'db.js SIGINT dinlememeli');
+  assert.strictEqual(process.listenerCount('SIGTERM'), 0, 'db.js SIGTERM dinlememeli');
+  assert.ok(process.listenerCount('exit') >= 1, 'exit kancasi ise KALMALI (bekleyen yazma)');
+});

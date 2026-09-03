@@ -53,7 +53,7 @@ function parseSyslogLine(rawMessage) {
       const localIp = match[1];
       const domain = match[2];
       const phone = db.getPhoneByIp(localIp);
-      const mac = db.data.radacct.find(sess => sess.ip === localIp && sess.active)?.username || db.getMacByIp(localIp) || 'UNKNOWN_MAC';
+      const mac = db.macByIp(localIp) || 'UNKNOWN_MAC';
 
       logRecord = {
         timestamp: now.toISOString(),
@@ -85,7 +85,7 @@ function parseSyslogLine(rawMessage) {
       // We only care about outward connections from the client
       if (localIp.startsWith('192.168.') || localIp.startsWith('10.') || localIp.startsWith('172.')) {
         const phone = db.getPhoneByIp(localIp);
-        const mac = db.data.radacct.find(sess => sess.ip === localIp && sess.active)?.username || db.getMacByIp(localIp) || 'UNKNOWN_MAC';
+        const mac = db.macByIp(localIp) || 'UNKNOWN_MAC';
 
         logRecord = {
           timestamp: now.toISOString(),
@@ -113,7 +113,7 @@ function parseSyslogLine(rawMessage) {
       const srcPort = ipMatch[2];
       const destIp = ipMatch[3];
       const destPort = ipMatch[4];
-      const mac = macMatch ? macMatch[1].toLowerCase().replace(/[^a-f0-9]/g, '') : (db.data.radacct.find(sess => sess.ip === localIp && sess.active)?.username || 'UNKNOWN_MAC');
+      const mac = macMatch ? macMatch[1].toLowerCase().replace(/[^a-f0-9]/g, '') : (db.macByIp(localIp) || 'UNKNOWN_MAC');
       const phone = db.getPhoneByMac(mac);
 
       logRecord = {
@@ -141,7 +141,7 @@ function parseSyslogLine(rawMessage) {
       const srcPort = extractParam(rawMessage, 'srcPort');
       const proto = extractParam(rawMessage, 'proto') || 'TCP';
       const phone = db.getPhoneByIp(localIp);
-      const mac = db.data.radacct.find(sess => sess.ip === localIp && sess.active)?.username || db.getMacByIp(localIp) || 'UNKNOWN_MAC';
+      const mac = db.macByIp(localIp) || 'UNKNOWN_MAC';
 
       logRecord = {
         timestamp: now.toISOString(),
@@ -158,7 +158,7 @@ function parseSyslogLine(rawMessage) {
       const localIp = extractParam(rawMessage, 'localIp');
       const domain = extractParam(rawMessage, 'domain');
       const phone = db.getPhoneByIp(localIp);
-      const mac = db.data.radacct.find(sess => sess.ip === localIp && sess.active)?.username || db.getMacByIp(localIp) || 'UNKNOWN_MAC';
+      const mac = db.macByIp(localIp) || 'UNKNOWN_MAC';
 
       logRecord = {
         timestamp: now.toISOString(),
@@ -197,8 +197,17 @@ function extractParam(str, param) {
  * kasitli degildir.)
  *   TimeStamp | LogType | MAC | Local IP | Src Port | Dest IP | Dest Port | Phone | Details
  */
+// Bir alanın içinde ayraç (|) veya satır sonu OLAMAZ: aksi hâlde tek bir kayıt
+// birden fazla satır gibi görünür ve loga sahte delil satırı enjekte edilebilir.
+// Savunma derinliği: girdi doğrulaması zaten bunu engelliyor, bu son kapı.
+function guvenliAlan(deger) {
+  return String(deger == null ? '' : deger).replace(/[\r\n]+/g, ' ').replace(/\|/g, '/');
+}
+
 function buildLogLine(record) {
-  return `${record.timestamp} | ${record.type} | ${record.mac} | ${record.localIp} | ${record.srcPort || 'N/A'} | ${record.destIp} | ${record.destPort} | ${record.phone} | ${record.details}\n`;
+  const a = guvenliAlan;
+  return `${a(record.timestamp)} | ${a(record.type)} | ${a(record.mac)} | ${a(record.localIp)} | ` +
+    `${a(record.srcPort || 'N/A')} | ${a(record.destIp)} | ${a(record.destPort)} | ${a(record.phone)} | ${a(record.details)}\n`;
 }
 
 function writeTo5651Log(record) {

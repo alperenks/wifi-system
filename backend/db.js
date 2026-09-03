@@ -122,6 +122,40 @@ class Database {
     return entry ? entry[0] : null;
   }
 
+  // --- Kimlik çözümlemenin TEK doğruluk kaynağı ------------------------------
+  // Aynı IP'de birden fazla aktif oturum olabilir (havuz dolduğunda paylaşım).
+  // O anki trafiğin sahibi EN SON açılan oturumdur. Bu kural tek bir yerde
+  // durmalı: eskiden bazı çağrı yerleri ilk eşleşmeyi, bazıları sonuncuyu
+  // alıyordu ve 5651 satırında bir misafirin MAC'i başka bir misafirin telefon
+  // numarasıyla eşleşebiliyordu — tek satırda iki farklı kişi.
+  // (Dizi kopyalamadan geriye doğru tarar; getPhoneByIp her log satırında çalışır.)
+  activeSessionByIp(ip) {
+    for (let i = this.data.radacct.length - 1; i >= 0; i--) {
+      const sess = this.data.radacct[i];
+      if (sess.active && sess.ip === ip) return sess;
+    }
+    return null;
+  }
+
+  // Bir MAC'in EN SON doğrulanmış akışı. Aynı cihaz farklı numarayla yeniden
+  // doğrulanırsa güncel numara esas alınır (eskiden ilk akış dönüyordu).
+  verifiedFlowByMac(mac) {
+    const cleanMac = String(mac || '').toLowerCase().replace(/[^a-f0-9]/g, '');
+    for (let i = this.data.guestFlows.length - 1; i >= 0; i--) {
+      const flow = this.data.guestFlows[i];
+      if (flow.verified && flow.mac === cleanMac) return flow;
+    }
+    return null;
+  }
+
+  // Bir IP'nin o anki MAC'i: önce aktif oturum, yoksa DHCP kirası.
+  // syslog ayrıştırıcısı bunu kullanır; getPhoneByIp ile AYNI oturumu görür.
+  macByIp(ip) {
+    const sess = this.activeSessionByIp(ip);
+    if (sess) return sess.username;
+    return this.getMacByIp(ip);
+  }
+
   // F2: Yazma biriktirme. Bir misafirin tek bir işlemi (OTP + kira + oturum)
   // arka arkaya birkaç save() tetikliyor; her biri TÜM veritabanını diske
   // basıyordu. Artık ardışık çağrılar kısa bir pencerede tek yazmaya toplanır.
@@ -303,27 +337,18 @@ class Database {
   }
 
   // --- IP to Phone Mapping ---
-  // I1: Aynı IP'de birden fazla aktif oturum varsa (havuz doldu, paylaşım oldu)
-  // EN SON açılan oturum esas alınır — trafiği o an kullanan odur. Eskiden ilk
-  // eşleşme dönüyordu ve log yanlış numaraya bağlanabiliyordu.
+  // macByIp ile AYNI oturumu kullanır: bir 5651 satırındaki MAC ile telefon
+  // numarası her zaman aynı misafire aittir.
   getPhoneByIp(ip) {
-    const activeSession = [...this.data.radacct].reverse().find(sess => sess.ip === ip && sess.active);
-    if (activeSession) {
-      const verifiedFlow = this.data.guestFlows.find(f => f.mac === activeSession.username && f.verified);
-      if (verifiedFlow) return verifiedFlow.phone;
-    }
-    const leasedMac = this.getMacByIp(ip);
-    if (leasedMac) {
-      const flow = this.data.guestFlows.find(f => f.mac === leasedMac && f.verified);
-      if (flow) return flow.phone;
-    }
-    return 'BILINMEYEN_TEL';
+    const mac = this.macByIp(ip);
+    if (!mac) return 'BILINMEYEN_TEL';
+    const flow = this.verifiedFlowByMac(mac);
+    return flow ? flow.phone : 'BILINMEYEN_TEL';
   }
 
   getPhoneByMac(mac) {
-    const cleanMac = mac.toLowerCase().replace(/[^a-f0-9]/g, '');
-    const verifiedFlow = this.data.guestFlows.find(f => f.mac === cleanMac && f.verified);
-    return verifiedFlow ? verifiedFlow.phone : 'BILINMEYEN_TEL';
+    const flow = this.verifiedFlowByMac(mac);
+    return flow ? flow.phone : 'BILINMEYEN_TEL';
   }
 
   // --- G2: Süresi dolan oturumların kapatılması ---
@@ -382,16 +407,18 @@ class Database {
 
 const database = new Database();
 
-// F2: Süreç kapanırken bekleyen yazma kaybolmasın. 'exit' kancasında yalnızca
-// senkron çağrı yapılabilir — atomik yazmamız zaten senkron.
 process.on('exit', () => {
   try { database.flushIfPending(); } catch (_) {}
 });
-for (const sinyal of ['SIGINT', 'SIGTERM']) {
-  process.on(sinyal, () => {
-    try { database.flushIfPending(); } catch (_) {}
-    process.exit(0);
-  });
-}
+
+// F2: Süreç kapanırken bekleyen yazma kaybolmasın. 'exit' kancasında yalnızca
+// senkron çağrı yapılabilir — atomik yazmamız zaten senkron.
+//
+// SİNYALLERİ BURADA YAKALAMIYORUZ: bir veri modülü sürecin kapanışına karar
+// vermemeli. db.js her yerde require edildiği için ilk SIGINT dinleyicisi o
+// oluyordu ve process.exit(0) çağırınca HTTP/RADIUS/syslog soketleri hiç
+// kapanmadan, uçuştaki istekler yarıda kalarak süreç ölüyordu. Sinyal
+// yönetimi soketlerin sahibi olan server.js'te (aşağıdaki 'exit' kancası
+// yine de bekleyen yazmayı diske indirir).
 
 module.exports = database;
