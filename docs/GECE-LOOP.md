@@ -376,3 +376,69 @@ testte değil, gerçek günlük akışta da çalışıyor.
 dokunan işlerden sonra security-auditor, teslim öncesi code-reviewer). Bulgular geldikçe
 bu günlüğe eklenecek.
 
+---
+
+## KAPANIŞ RAPORU — 2026-09-03 (loop durduruldu)
+
+Loop 5 tur çalıştı, **39 commit** üretti ve Alperen'in isteğiyle durduruldu.
+`main` dalına dokunulmadı, `.env` ve donanım dosyaları (`esp32-*`, `pfsense-files/`)
+hiç değiştirilmedi, push yapılmadı (uzak dal zaten tanımlı değil).
+
+### Neler yapıldı (backlog bölümlerine göre)
+
+| Bölüm | Konu | Durum |
+|---|---|---|
+| A1-A4 | Birim test altyapısı (db, auth, imza zinciri) + `npm test` | ✅ |
+| B1-B2 | Veri kotası + RFC 5176 Disconnect (F-10); TLS sertifika üretici (F-05) | ✅ |
+| C1-C3 | Ağ geçidi kural seti belgesi (F-11); README mimari diyagramı; belgelerde sır → yer tutucu | ✅ |
+| D1-D4 | `/api/health`; portalda kalan deneme/kilit; gövde doğrulama; merkezi hata katmanı | ✅ |
+| E1-E2 | Gerçek TSA entegrasyon planı; SQLite değerlendirmesi (yalnızca belge) | ✅ |
+| F1-F6 | Atomik db yazma + karantina; yazma biriktirme; health metrikleri; panelde kota; attack A8; giriş limiti düzeltmesi | ✅ |
+| G1-G6 | Syslog ayrıştırıcı testleri; oturum ömrü temizleyicisi; arama tarih aralığı; log kırpma; HTTP uç nokta testleri; NetGSM testleri | ✅ |
+| H2-H5 | CLI çıkış kodları; giriş limiti uyarısı + `--skip-a7`; ESP32 testi `npm test`'e; kota %80 uyarısı | ✅ |
+| I1, I3, I4 | Kira havuzu hatası; eski oturum kontrolü; PROJE-ANLATIMI.md senkronu | ✅ |
+| **H1** | **Doğrulanmış akışlar hiç silinmiyor (KVKK)** | ⏸ **Alperen onayı bekliyor** |
+| **I2** | Kira ömrü politikası | ⏸ Alperen kararı |
+| **F7** | Gerçek KamuSM TSA kararı | ⏸ Alperen kararı |
+
+### Gecenin en önemli iki bulgusu
+
+1. **I1 (düzeltildi) — Kira havuzu dolunca herkese aynı IP.** `allocateIp` havuz
+   tükenince her yeni cihaza `192.168.20.100` veriyordu; 20 MAC o IP'yi paylaşıyor,
+   7 oturum aynı anda orada aktifti. 5651 logunun tek işi "bu IP o an kimdi?" sorusunu
+   yanıtlamak; paylaşılan IP bunu belirsizleştiriyordu. Sahada 101. cihazdan sonra
+   aynı durum oluşurdu. Artık aktif oturumu olmayan kira geri alınıyor.
+2. **H1 (düzeltilmedi, onay bekliyor) — Telefon numaraları hiç silinmiyor.**
+   `purgeExpired()` doğrulanmış akışları yaşı ne olursa olsun koruyor; bu akışlar
+   misafirin telefon numarasını taşıyor. 730 günlük saklama politikası fiilen yalnızca
+   oturum kayıtlarına uygulanıyor. Düzeltme kişisel veri sileceği için uygulanmadı.
+
+### Son doğrulama (kapanışta çalıştırıldı)
+
+```
+npm test              152/152 gecti
+npm run test:esp32     11/11 gecti
+npm run simulate 4 2   4 misafirin 4'u de oturum acti
+npm run attack         5 engellendi / 0 acik
+npm run verify-chain   ZINCIR GECERLI — 2 gun (2026-09-01, 2026-09-03)
+```
+
+- Panel: dört servis de "Çalışıyor"; 81 oturumun **81'inde** telefon numarası çözülü.
+- Bugünün 5651 logu: **1240 satır, `BILINMEYEN_TEL` sayısı 0**.
+- `db.json` geçerli JSON; aynı IP'de birden fazla aktif oturum **kalmadı** (I3 kapandı);
+  artık geçici (`.tmp`) veya karantina (`.bozuk-*`) dosyası yok.
+
+### Yapılamayan: bağımsız inceleme
+
+Son turda CLAUDE.md gereği **security-auditor** ve **code-reviewer** ajanları
+başlatıldı; **ikisi de oturum kullanım limitine çarpıp hiçbir bulgu üretemeden düştü.**
+Yani gecenin kodu bağımsız bir güvenlik denetiminden GEÇMEDİ. Sahaya çıkmadan önce
+bu denetim tekrar çalıştırılmalı (`/quality-gate` veya doğrudan security-auditor).
+
+### Sabah ne yapmalı?
+
+1. `git log --oneline main..gece-gelistirme` ile 39 commit'i gözden geçir.
+2. Beğendiklerini `main`'e merge et (loop bilerek merge etmedi).
+3. **H1 kararını ver** — telefon numaralarının saklama süresi.
+4. Sahaya çıkmadan önce bağımsız güvenlik denetimini çalıştır (yukarıdaki not).
+
