@@ -141,6 +141,31 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 - `[ ]` **F7 — (Alperen'e soru) Gerçek TSA kararı.** `docs/TSA-ENTEGRASYON-PLANI.md`
   §7'deki dört karar verilmeden kod yazılmamalı.
 
+### G. Sonraki tur adayları (loop'un 2. turda not ettikleri)
+
+- `[ ]` **G1 — `syslog-server.js` birim testleri.** pfSense `filterlog` ve `unbound`
+  satırlarını ayrıştıran mantık 5651 delilinin kaynağı ama hiç testi yok. Ayrıştırıcıyı
+  dışa aktarıp (soket kodunu değiştirmeden) gerçek örnek satırlarla sına: eksik alan,
+  bozuk satır, IPv6, bilinmeyen biçim → çökmemeli. Kabul: `npm test` yeşil, log biçimi
+  DEĞİŞMEDEN.
+- `[ ]` **G2 — Süresi dolan oturumları kapatan temizleyici.** `Session-Timeout` (7200 sn)
+  dolduğu hâlde oturumlar `active` kalıyor; panelde 20+ "aktif" misafir birikiyor.
+  Sahada bunu NAS yapar, simülasyonda kimse yapmıyor. Periyodik bir görev
+  `startTime + timeout < now` olan oturumları Accounting-Stop ile kapatsın.
+  Kabul: eski oturumlar "Koptu" görünüyor, simulate/attack yeşil.
+- `[ ]` **G3 — `/api/dashboard/search` tarama maliyeti.** Her sorgu TÜM log dosyalarını
+  baştan okuyor; 2 yıllık arşivde bu yüzlerce MB demek. En az bir tarih aralığı filtresi
+  (`?from=&to=`) ekle, sonuç sayısını sınırla. Kabul: aralık verilince yalnızca ilgili
+  dosyalar okunuyor; adli arama sonucu değişmiyor.
+- `[ ]` **G4 — `/api/dashboard/logs` tamamını döndürüyor.** Günlük dosya büyüdükçe panel
+  yavaşlar. Son N satır (`?tail=500`) döndür, panel "tümünü indir" bağlantısı versin.
+  Kabul: varsayılan yanıt küçük, panel canlı log akışı bozulmuyor.
+- `[ ]` **G5 — Uç nokta (HTTP) testleri.** `server.js` `app`'i dışa aktarsın (dinlemeyi
+  `require.main` altına al), testler `node:http` ile gerçek istek atsın: 401/400/200
+  yolları. Ek bağımlılık YOK. Kabul: `npm test` içinde uç nokta testleri de koşuyor.
+- `[ ]` **G6 — `netgsm.js` birim testleri.** SIM_MODE'da sahte OTP dönüşü, gerçek modda
+  istek gövdesinin doğru kurulması (ağa çıkmadan, `axios` sahtelenerek). Kabul: yeşil.
+
 ---
 
 ## İLERLEME GÜNLÜĞÜ
@@ -186,3 +211,32 @@ kuralları ve çıktı birebir aynı; komut öncesi/sonrası çıktı karşıla�
 4. **pfSense'te CoA/3799 desteği** donanım/kurulum gerektiren tek doğrulama —
    `docs/AG-GECIDI-KURALLARI.md` §6.5'teki testi sahada yapmak gerekiyor.
 5. Dal `gece-gelistirme`, 15 commit, `main`'e dokunulmadı, push yapılmadı.
+
+### 2026-09-03 — 2. tur (gece-gelistirme dalı, +8 commit)
+
+**Yapılanlar — F bölümünün tamamı (F7 hariç; o Alperen'in kararı):**
+
+| Görev | Sonuç | Kanıt |
+|---|---|---|
+| F1 | `db.json` atomik yazma + bozuk dosyayı karantinaya alma | 3 yeni test; yarım dosya artık asıl dosyayı bozamıyor, bozuk dosya `db.json.bozuk-<zaman>` olarak saklanıyor |
+| F2 | `save()` biriktirme (varsayılan 200 ms) + kapanışta boşaltma | ölçüm: 20 misafirlik iş yükünde **120 diske yazma → 1** |
+| F3 | `/api/health` → `dbSizeKb`, `activeSessions` | simulate sırasında 40→43 KB, 23→25 oturum |
+| F4 | Panelde kota çubuğu + "Kota doldu" rozeti | tarayıcıda iki misafir kotayı aştı, kırmızı çubuk ve rozet göründü; kota kapalıyken çubuk hiç çizilmiyor |
+| F5 | `attack.js` A8 — kota/CoA senaryosu | `QUOTA_MB=2` ile: "Kota (2 MB) asilinca oturum kapatildi (sebep: quota)" |
+| F6 | Giriş limiti artık yalnızca **başarısız** denemeleri sayıyor | A7 6. denemede engelliyor; başarılı giriş kilitlemiyor. Üst üste iki `attack` koşusunun neden A8'i atladığı README'de yazılı |
+
+**Test kapısı (her görevde):** `npm test` 85/85 · `npm run simulate` tüm misafirler
+oturum açtı · `npm run attack` 5-6 engellendi / 0 açık · panel oturumları ve telefon
+numarası çözülmüş 5651 logları · `verify-chain` geçerli.
+
+**Geri alınan bir şey yok.** Gerçek `db.json` ve `logs/` içeriğine dokunulmadı
+(test kum havuzu artık `rename` çağrılarını da yakalıyor).
+
+**Alperen'in bakması gerekenler:**
+1. **F7 hâlâ açık** — gerçek TSA kararı (`docs/TSA-ENTEGRASYON-PLANI.md` §7).
+2. **`DB_SAVE_DEBOUNCE_MS=200` yeni bir varsayılan.** Süreç zorla öldürülürse (kill -9)
+   son 200 ms'lik değişiklik kaybolabilir; normal kapanışta kayıp yok. Sıfır risk
+   isterseniz `.env`'de `DB_SAVE_DEBOUNCE_MS=0` yapın.
+3. **Panelde "aktif" oturumlar birikiyor** (G2): `Session-Timeout` dolsa da simülasyonda
+   kimse oturumu kapatmıyor. Sahada bunu NAS yapar; demoda yanıltıcı görünüyor.
+4. Dal `gece-gelistirme`, toplam 24 commit, `main`'e dokunulmadı, push yapılmadı.
