@@ -197,6 +197,28 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   portalda/panelde uyarı; şu an misafir birden kopuyor. Kabul: eşik aşımında panelde
   sarı uyarı, kotayı aşınca kırmızı (çubuk zaten var).
 
+### I. Sonraki tur adayları (loop'un 4. turda not ettikleri)
+
+- `[x]` **I1 — Kira havuzu dolunca herkese aynı IP veriliyordu.** (Bu turda düzeltildi.)
+  `allocateIp` havuz tükenince havuzun İLK adresini her yeni cihaza veriyordu; bu
+  veritabanında 20 MAC `192.168.20.100`'ü paylaşıyordu ve 7 oturum aynı anda o IP'de
+  aktifti — 5651 kaydında IP→telefon eşlemesi belirsizleşiyordu. Artık aktif oturumu
+  olmayan kira geri alınıyor; gerçekten yer yoksa yüksek sesle loglanıyor.
+- `[ ]` **I2 — (Alperen'e soru) Kira ömrü politikası.** I1 palyatif: kiralar hâlâ
+  kendiliğinden zaman aşımına uğramıyor, yalnızca havuz dolunca geri alınıyor.
+  Gerçek DHCP'de kira süresi (`lease-time`) vardır. Seçenekler: (a) kiraya
+  `expiresAt` ekleyip `SESSION_TIMEOUT` kadar sonra serbest bırakmak,
+  (b) `purgeExpired` içinde aktif olmayan eski kiraları temizlemek,
+  (c) sahada DHCP'yi zaten pfSense yaptığı için simülasyonda olduğu gibi bırakmak.
+  Karar sizin; (a) en gerçekçisi.
+- `[ ]` **I3 — Eski veride 7 oturum hâlâ `192.168.20.100`'de aktif.** I1 yeni
+  tahsisleri düzeltti ama mevcut kayıtlar duruyor; G2 temizleyicisi 2 saat içinde
+  bunları kapatacak. Kontrol: `/api/dashboard/sessions` içinde aynı IP'de birden fazla
+  aktif oturum kalmamalı. (Bilgi amaçlı; kendiliğinden çözülür.)
+- `[ ]` **I4 — `docs/PROJE-ANLATIMI.md` güncel değil.** Dosya ağacı ve modül listesi
+  son dört turda eklenen `validate.js`, `errors.js`, `scripts/gen-cert.js` ve `test/`
+  dizinini bilmiyor. Kabul: belge repodaki gerçek yapıyla örtüşüyor.
+
 ---
 
 ## İLERLEME GÜNLÜĞÜ
@@ -304,4 +326,33 @@ numarası çözülmüş 5651 logları · `verify-chain` geçerli.
 2. **F7 hâlâ açık** — gerçek TSA kararı.
 3. `npm run attack` sonrası 15 dakika `simulate`/panel girişi kilitleniyor (H3).
    Geçici çözüm: sunucuyu yeniden başlatın.
+4. Dal `gece-gelistirme`; `main`'e dokunulmadı, push yapılmadı.
+
+### 2026-09-03 — 4. tur (gece-gelistirme dalı, +5 commit)
+
+**Yapılanlar — H2-H5 ve yolda bulunan I1 (H1 hâlâ onayınızı bekliyor):**
+
+| Görev | Sonuç | Kanıt |
+|---|---|---|
+| H2 | `simulate.js`/`attack.js` artık `process.exit` yerine `exitCode` kullanıyor | Sunucu kapalıyken ve giriş limiti doluyken düzgün mesaj + çıkış kodu 1; Windows libuv çökmesi yok |
+| H3 | Giriş limiti tıkanması artık anlaşılır | simulate 429'da gerçek sebebi söylüyor; attack koşu sonunda hatırlatıyor; `npm run attack -- --skip-a7` limiti hiç doldurmuyor |
+| H4 | ESP32 protokol testi `npm test` kapsamında | 138 → 149 test; `npm run test:esp32` hâlâ tek başına çalışıyor; 5 yeni senaryo (gövde kurcalama, eksik alan, bozuk JSON, saat sapması, nonce halkası) |
+| H5 | Kota %80'de uyarı | `QUOTA_MB=8` ile 7.5 MB'a gelen oturum "kotasinin %94'ini kullandi" logladı ve AÇIK kaldı; panelde sarı çubuk + "⚠ kota bitmek üzere" |
+| **I1** | **Kira havuzu dolunca herkese aynı IP** — düzeltildi | Havuz tükenmişken 4 yeni misafir 4 FARKLI IP aldı; 5651 satırları kendi telefon numaralarına bağlandı |
+
+**Test kapısı:** `npm test` 152/152 · `simulate 4 2` dört misafir de oturum açtı ·
+`attack --skip-a7` 4 engellendi / 0 açık · `verify-chain` geçerli.
+
+**I1 neden önemli:** Bu, gecenin H1'den sonraki en ciddi bulgusu. Havuz (101 adres)
+dolduğu anda `allocateIp` her yeni cihaza `192.168.20.100` veriyordu; bu veritabanında
+20 MAC o IP'yi paylaşıyor, 7 oturum aynı anda orada aktifti. 5651 logunun tek işi
+"bu IP o an kimdi?" sorusunu yanıtlamak — paylaşılan IP bu yanıtı belirsizleştirir.
+Sahada 101 cihaz bağlandıktan sonra aynı durum oluşurdu.
+
+**Alperen'in bakması gerekenler:**
+1. **H1 — KVKK/saklama.** Doğrulanmış OTP akışları (telefon numaraları) hiç silinmiyor.
+   Düzeltmesi kişisel veri sileceği için hâlâ bekliyor. **Onayınız gerekiyor.**
+2. **I2 — kira ömrü politikası.** I1 palyatif; kiraların kendiliğinden zaman aşımına
+   uğraması gerekir mi, yoksa sahada pfSense DHCP yaptığı için böyle mi kalsın?
+3. **F7 — gerçek TSA kararı** (değişmedi).
 4. Dal `gece-gelistirme`; `main`'e dokunulmadı, push yapılmadı.
