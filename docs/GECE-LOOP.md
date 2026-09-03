@@ -82,7 +82,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   kurcalanmış imza reddi, scrypt parola doğru/yanlış. Kabul: yeşil.
 - `[x]` **A3 — Birim testleri: kamusm-signer.js.** İmzala→zincir doğru, araya gün ekleme/
   silme zinciri kırıyor, içerik değişimi yakalanıyor. Kabul: yeşil.
-- `[ ]` **A4 — `npm test` scripti** package.json'a: tüm `node --test` dosyalarını koşsun.
+- `[x]` **A4 — `npm test` scripti** package.json'a: tüm `node --test` dosyalarını koşsun.
 
 ### B. Eksik güvenlik özellikleri
 - `[ ]` **B1 (F-10) — Veri kotası.** Accounting interim-update'te toplam bayt eşiği aşılınca

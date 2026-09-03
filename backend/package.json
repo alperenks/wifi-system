@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test": "node --test \"test/*.test.js\"",
     "simulate": "node simulate.js",
     "attack": "node attack.js",
     "verify-chain": "node verify-chain.js",
