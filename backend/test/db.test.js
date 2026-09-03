@@ -28,6 +28,7 @@ process.env.RETENTION_SESSION_DAYS = '1';
 process.env.LAN_PREFIX = '192.168.20';
 process.env.LEASE_START = '100';
 process.env.LEASE_END = '102';
+process.env.DB_SAVE_DEBOUNCE_MS = '50';
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -267,7 +268,7 @@ test('purgeExpired silinecek kayit yoksa 0 doner', () => {
 
 test('save() once gecici dosyaya yazip yerine tasir (atomik)', () => {
   db.createGuestFlow('AA:BB:CC:DD:EE:20', '5551234567', '123456');
-  db.save();
+  db.flush();
 
   // Geçici dosya arkada bırakılmamalı.
   assert.strictEqual(dbFile.rawGet(DB_JSON + '.tmp'), '', 'gecici dosya bosaltilmis olmali');
@@ -279,7 +280,7 @@ test('save() once gecici dosyaya yazip yerine tasir (atomik)', () => {
 
 test("yarim kalmis yazma db.json dosyasini bozamaz (rename ile yer degistirme)", () => {
   db.createGuestFlow('AA:BB:CC:DD:EE:21', '5551234567', '123456');
-  db.save();
+  db.flush();
   const saglamIcerik = dbFile.rawGet();
 
   // Yazma sırasında süreç ölmüş gibi: geçici dosya yarım, asıl dosya el değmemiş.
@@ -303,7 +304,64 @@ test('bozuk db.json UZERINE YAZILMAZ, kenara alinir (delil kaybi olmaz)', () => 
 
   // Sonraki yazma temiz bir db.json uretir; karantinadaki dosyaya dokunmaz.
   db.data.guestFlows = [];
-  db.save();
+  db.flush();
   assert.doesNotThrow(() => JSON.parse(dbFile.rawGet()));
   assert.strictEqual(dbFile.rawGet(bozukDosyalar.at(-1)), bozukIcerik);
+});
+
+// --- F2: Yazma biriktirme -----------------------------------------------------
+
+const uyu = (ms) => new Promise(r => setTimeout(r, ms));
+
+test('ardisik save() cagrilari tek diske yazmaya toplanir', async () => {
+  db.flush();                       // bekleyen yazma kalmasin
+  const oncekiYazma = db.writeCount;
+
+  for (let i = 0; i < 10; i++) {
+    db.createGuestFlow(`AA:BB:CC:DD:F0:${i.toString(16).padStart(2, '0')}`, '5551112233', '123456');
+  }
+  assert.strictEqual(db.writeCount, oncekiYazma, 'pencere dolmadan diske yazilmamali');
+
+  await uyu(120);                   // DB_SAVE_DEBOUNCE_MS = 50
+  assert.strictEqual(db.writeCount, oncekiYazma + 1, '10 degisiklik icin tek yazma yeterli');
+
+  // Veri gerçekten diskte mi?
+  const kaydedilen = JSON.parse(dbFile.rawGet());
+  assert.strictEqual(kaydedilen.guestFlows.length, 10);
+});
+
+test('flush() bekletmeden hemen yazar', () => {
+  db.createGuestFlow('AA:BB:CC:DD:F1:01', '5551112233', '123456');
+  const oncekiYazma = db.writeCount;
+
+  db.flush();
+
+  assert.strictEqual(db.writeCount, oncekiYazma + 1);
+  assert.strictEqual(JSON.parse(dbFile.rawGet()).guestFlows.at(-1).mac, 'aabbccddf101');
+});
+
+test('flushIfPending yalnizca bekleyen yazma varsa diske dokunur', () => {
+  db.flush();
+  const oncekiYazma = db.writeCount;
+
+  db.flushIfPending();              // bekleyen yok -> yazma olmamali
+  assert.strictEqual(db.writeCount, oncekiYazma);
+
+  db.createGuestFlow('AA:BB:CC:DD:F2:01', '5551112233', '123456');
+  db.flushIfPending();              // bekleyen var -> yazmali
+  assert.strictEqual(db.writeCount, oncekiYazma + 1);
+});
+
+test('biriktirme veri kaybetmez: son durum diske yansir', async () => {
+  db.data.guestFlows = [];
+  db.flush();
+
+  db.createGuestFlow('AA:BB:CC:DD:F3:01', '5551112233', '123456');
+  db.allocateIp('AA:BB:CC:DD:F3:01');
+  db.verifyGuestFlow('AA:BB:CC:DD:F3:01', '123456');
+  await uyu(120);
+
+  const kaydedilen = JSON.parse(dbFile.rawGet());
+  assert.strictEqual(kaydedilen.guestFlows.at(-1).verified, true, 'son durum diske yazilmali');
+  assert.ok(kaydedilen.radcheck['aabbccddf301'], 'RADIUS kaydi da diskte olmali');
 });

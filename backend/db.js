@@ -5,6 +5,7 @@ const config = require('./config');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const DB_TMP_PATH = DB_PATH + '.tmp';   // F1: atomik yazma için geçici dosya
+const SAVE_DEBOUNCE_MS = Math.max(0, config.db.saveDebounceMs);   // F2
 
 // OTP'yi flow'a özgü salt ile hash'ler (F-06: düz metin saklama yok).
 function hashOtp(salt, otp) {
@@ -29,6 +30,12 @@ class Database {
       radacct: [],    // { sessionId, username, ip, startTime, endTime, inputOctets, outputOctets, active }
       leases: {}      // mac: ip
     };
+
+    // F2: yazma biriktirme durumu
+    this._saveTimer = null;
+    this._pendingSave = false;
+    this.writeCount = 0;      // teşhis: gerçekten kaç kez diske yazıldı
+
     this.load();
   }
 
@@ -95,14 +102,45 @@ class Database {
     return entry ? entry[0] : null;
   }
 
+  // F2: Yazma biriktirme. Bir misafirin tek bir işlemi (OTP + kira + oturum)
+  // arka arkaya birkaç save() tetikliyor; her biri TÜM veritabanını diske
+  // basıyordu. Artık ardışık çağrılar kısa bir pencerede tek yazmaya toplanır.
+  // Sürecin kapanışında bekleyen yazma mutlaka boşaltılır (aşağıdaki kancalar).
+  save() {
+    if (SAVE_DEBOUNCE_MS <= 0) return this.flush();
+
+    this._pendingSave = true;
+    if (this._saveTimer) return;               // zaten planlı
+
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      this.flush();
+    }, SAVE_DEBOUNCE_MS);
+
+    // Bekleyen yazma, süreci ayakta tutmasın (testler ve CLI betikleri için).
+    if (typeof this._saveTimer.unref === 'function') this._saveTimer.unref();
+  }
+
+  // Bekleyen yazma varsa hemen boşaltır (kapanış kancaları bunu çağırır).
+  flushIfPending() {
+    if (this._pendingSave) this.flush();
+  }
+
   // F1: Atomik yazma. Önce geçici dosyaya yazıp sonra yerine taşırız; böylece
   // yazma sırasında süreç ölse bile db.json ya eski ya yeni hâliyle bulunur,
   // ASLA yarım kalmaz. (Yarım dosya = bir sonraki açılışta parse hatası =
   // 5651 oturum kayıtlarının kaybı.)
-  save() {
+  flush() {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
+    this._pendingSave = false;
+
     try {
       fs.writeFileSync(DB_TMP_PATH, JSON.stringify(this.data, null, 2), 'utf8');
       fs.renameSync(DB_TMP_PATH, DB_PATH);   // aynı dosya sisteminde atomik
+      this.writeCount++;
     } catch (err) {
       console.error('Failed to save database to disk:', err);
     }
@@ -287,4 +325,18 @@ class Database {
   }
 }
 
-module.exports = new Database();
+const database = new Database();
+
+// F2: Süreç kapanırken bekleyen yazma kaybolmasın. 'exit' kancasında yalnızca
+// senkron çağrı yapılabilir — atomik yazmamız zaten senkron.
+process.on('exit', () => {
+  try { database.flushIfPending(); } catch (_) {}
+});
+for (const sinyal of ['SIGINT', 'SIGTERM']) {
+  process.on(sinyal, () => {
+    try { database.flushIfPending(); } catch (_) {}
+    process.exit(0);
+  });
+}
+
+module.exports = database;

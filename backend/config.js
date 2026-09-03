@@ -131,6 +131,13 @@ const config = {
     mockKey: process.env.KAMUSM_MOCK_KEY || (SIM_MODE ? devSecret('KAMUSM_MOCK_KEY') : ''),
   },
 
+  // --- Veritabanı yazma davranışı ---
+  // Ardışık save() çağrıları bu pencerede tek bir diske yazmaya toplanır.
+  // 0 = biriktirme kapalı (her çağrı hemen yazar).
+  db: {
+    saveDebounceMs: int(process.env.DB_SAVE_DEBOUNCE_MS, 200),
+  },
+
   // --- Veri kotası (F-10) ---
   // Bir oturum bu kadar MB'ı aşınca RADIUS sunucusu NAS'a RFC 5176
   // Disconnect-Request gönderir ve oturumu kapatır. 0 = kota KAPALI (varsayılan).
