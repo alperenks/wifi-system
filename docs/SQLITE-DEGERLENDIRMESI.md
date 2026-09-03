@@ -175,8 +175,13 @@ yani `pfsense-files/radius.sql` ile **daha da yakınsarız**.
 - Panelde oturum listesi/arama gözle görülür yavaşladığında, veya
 - İkinci bir süreç (bakım betiği, rapor aracı) aynı veriye yazma ihtiyacı duyduğunda.
 
-Bunu ölçmek kolay: `/api/health` yanıtına `dbSizeKb` eklenebilir, panel eşiği aşınca
-uyarır. (Küçük bir iş; ayrı bir görev olarak backlog'a yazılabilir.)
+Bunu ölçmek kolay: `/api/health` artık `dbSizeKb` ve `activeSessions` döndürüyor
+(F3, 2026-09-03) — eşik takibi tek istekle yapılabilir:
+
+```bash
+curl -s http://localhost:3000/api/health
+# {"status":"ok","uptime":15,"mode":"simulation","activeSessions":25,"dbSizeKb":43,...}
+```
 
 ---
 

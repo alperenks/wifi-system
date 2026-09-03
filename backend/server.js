@@ -205,10 +205,19 @@ app.get('/api/auth/me', (req, res) => {
 // veya saha teknisyeni "portal ayakta mı?" sorusunu tek istekle yanıtlayabilsin.
 // Bu yüzden sır/kişisel veri sızdırmaz — yalnızca çalışma durumu döner.
 app.get('/api/health', (req, res) => {
+  // F3: db.json boyutu izlenebilsin — SQLite'a geçiş eşiği (~5 MB) buradan takip
+  // edilir (docs/SQLITE-DEGERLENDIRMESI.md §6). Boyut ve sayaç, sır değildir.
+  let dbSizeKb = null;
+  try {
+    dbSizeKb = Math.round(fs.statSync(path.join(__dirname, 'db.json')).size / 1024);
+  } catch (_) { /* dosya henüz yoksa null kalır */ }
+
   res.json({
     status: 'ok',
     uptime: Math.round(process.uptime()),          // saniye
     mode: config.SIM_MODE ? 'simulation' : 'live',
+    activeSessions: db.data.radacct.filter(s => s.active).length,
+    dbSizeKb,
     time: new Date().toISOString(),
   });
 });

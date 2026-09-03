@@ -128,7 +128,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
 - `[x]` **F2 — `save()` biriktirme (debounce).** 11 çağrı noktası var; ardışık yazmaları
   200 ms'de topla, kapanışta flush. Kabul: `npm run simulate 6 3` sırasında yazma
   sayısı belirgin düşüyor, veri kaybı yok.
-- `[ ]` **F3 — `/api/health`'e `dbSizeKb` + `activeSessions`.** SQLite geçiş eşiğini
+- `[x]` **F3 — `/api/health`'e `dbSizeKb` + `activeSessions`.** SQLite geçiş eşiğini
   (5 MB) izleyebilmek için. Kabul: alanlar dönüyor, sır sızmıyor, simulate yeşil.
 - `[ ]` **F4 — Kota durumunu panelde göster.** `QUOTA_MB` açıkken oturum satırında
   kullanılan/kalan veri çubuğu. Kabul: kota aşan oturum panelde "kota doldu" görünüyor.
