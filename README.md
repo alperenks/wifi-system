@@ -39,6 +39,10 @@ Sahada gerçek SMS ve gerçek ağ geçidi için `backend/.env` içinde `SIM_MODE
 Sistem, "saldırgan gözüyle" bir kod incelemesinden geçirildi; bulunan açıklar
 kapatıldı ve her düzeltme otomatik bir saldırı testiyle kanıtlandı. Ayrıntılı
 bulgu kaydı: [docs/GUVENLIK-DEGERLENDIRMESI.md](docs/GUVENLIK-DEGERLENDIRMESI.md).
+Misafiri **sınırlayan** katman ağ geçididir (iç ağ izolasyonu, DNS zorlaması,
+pfBlockerNG, kapatılacak portlar): uygulanabilir kural seti
+[docs/AG-GECIDI-KURALLARI.md](docs/AG-GECIDI-KURALLARI.md) içinde — pfSense adımları
+ve MikroTik komutlarıyla birlikte.
 
 **Kapatılan açıklar:**
 

@@ -93,7 +93,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   Kabul: TLS açıkken `https://localhost:3000/captive` yanıt veriyor (öz-imzalı uyarı normal).
 
 ### C. Belgeler / mimari
-- `[ ]` **C1 (F-11) — pfSense/MikroTik kural seti belgesi.** `docs/AG-GECIDI-KURALLARI.md`:
+- `[x]` **C1 (F-11) — pfSense/MikroTik kural seti belgesi.** `docs/AG-GECIDI-KURALLARI.md`:
   misafir VLAN izolasyonu (iç ağa erişim yok), pfBlockerNG DNS filtreleme, DNS zorlaması,
   gereksiz port kapatma, RADIUS+syslog yönlendirme. Örnek MikroTik komutları + pfSense adımları.
   Kabul: bir ağ yöneticisi bunu izleyip sahayı kurabilecek netlikte.
