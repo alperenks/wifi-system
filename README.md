@@ -117,10 +117,20 @@ ve MikroTik komutlarıyla birlikte.
 **Kanıt komutları** (`backend/` içinde, sunucu çalışırken):
 
 ```bash
+npm test                # birim testleri (db, auth, imza zinciri, doğrulama, hata katmanı)
 npm run attack          # tüm saldırıları dener — hepsi "ENGELLENDI" olmalı
 npm run verify-chain    # 5651 imza zincirini doğrular; silme/kurcalama tespit eder
 npm run test:esp32      # ESP32 yetkilendirme protokolünü (imza/replay/stale) sınar
 ```
+
+> **`npm run attack` iki kez üst üste çalıştırılırsa:** A7 senaryosu bilerek 5 kez
+> yanlış parola dener ve yönetici giriş limitini (15 dk / 5 **başarısız** deneme)
+> doldurur. Bu yüzden ikinci koşuda giriş gerektiren A8 senaryosu "BILGI" ile atlanır.
+> Limit bellekte tutulduğu için çözüm basit: **sunucuyu yeniden başlatın.** Başarılı
+> girişler sayaca yazılmaz, yani normal kullanım kendini kilitlemez.
+>
+> A8 (veri kotası) senaryosu yalnızca sunucuda kota açıkken çalışır:
+> `QUOTA_MB=2 node server.js` ile başlatıp `npm run attack` çalıştırın.
 
 `docs/attack-before.txt` düzeltme öncesi, `docs/attack-after.txt` düzeltme sonrası
 çıktıdır — farkı yan yana gösterir.

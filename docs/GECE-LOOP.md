@@ -134,7 +134,7 @@ Bu dosyanın en altındaki **## İLERLEME GÜNLÜĞÜ**'ne 2-4 satır ekle:
   kullanılan/kalan veri çubuğu. Kabul: kota aşan oturum panelde "kota doldu" görünüyor.
 - `[x]` **F5 — `attack.js`'e kota/CoA senaryosu ekle.** Kotayı aşan misafirin gerçekten
   düşürüldüğünü saldırı testi de kanıtlasın. Kabul: yeni senaryo ENGELLENDI/OK dönüyor.
-- `[ ]` **F6 — Yönetici giriş limiti test akışını kilitliyor.** `npm run attack` 5 kez
+- `[x]` **F6 — Yönetici giriş limiti test akışını kilitliyor.** `npm run attack` 5 kez
   yanlış giriş denediği için sonrasında 15 dakika `/api/auth/login` 429 dönüyor; panel
   elle kontrol edilemiyor. Öneri: limiti aşan istekler için `Retry-After` başlığı +
   README'ye not, ya da attack sonrası uyarı satırı. Kabul: davranış belgelenmiş.

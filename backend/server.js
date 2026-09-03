@@ -86,12 +86,15 @@ const verifyLimiter = rateLimit({
   keyGenerator: (req) => clientKey(req)
 });
 
-// F-12: Yönetici girişine IP başına 15 dakikada 5 deneme
+// F-12: Yönetici girişine IP başına 15 dakikada 5 BAŞARISIZ deneme.
+// F6: Başarılı girişler sayaca yazılmaz — kaba kuvvetin ölçüsü yanlış paroladır.
+// Aksi hâlde normal çalışan bir yönetici (veya test akışı) kendini kilitliyordu.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: RL.loginPer15Min,
   message: { message: 'Çok fazla başarısız giriş. 15 dakika sonra tekrar deneyin.' },
   standardHeaders: true, legacyHeaders: false,
+  skipSuccessfulRequests: true,
   keyGenerator: (req) => clientKey(req)
 });
 
